@@ -32,10 +32,6 @@ docker run --rm -ti \
 
 S3
 ```
-# us-east-1
-curl -s -H 'host: s3.us-west-2.amazonaws.com' http://localhost:8080/<BUCKET_NAME>
-
-# other region
 curl -s -H 'host: s3.<BUCKET_REGION>.amazonaws.com' http://localhost:8080/<BUCKET_NAME>
 ```
 
