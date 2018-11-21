@@ -29,10 +29,6 @@
   name = "github.com/aws/aws-sdk-go"
   version = "1.15.27"
 
-[[constraint]]
-  name = "github.com/coreos/pkg"
-  version = "4.0.0"
-
 [prune]
   go-tests = true
   unused-packages = true
