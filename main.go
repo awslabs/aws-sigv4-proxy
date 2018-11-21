@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	"github.com/awslabs/aws-sigv4-proxy/handler"
 	log "github.com/sirupsen/logrus"
-	"github.com/tantona/aws-sigv4-proxy/handler"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
