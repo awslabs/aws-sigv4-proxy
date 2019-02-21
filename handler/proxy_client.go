@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -59,7 +60,10 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL := *req.URL
-	proxyURL.Host = req.Host
+	proxyURL.Host = os.Getenv("SERVICE_HOST")
+	if proxyURL.Host == "" {
+		proxyURL.Host = req.Host
+	}
 	proxyURL.Scheme = "https"
 
 	proxyReq, err := http.NewRequest(req.Method, proxyURL.String(), req.Body)
