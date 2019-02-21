@@ -66,7 +66,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	proxyReq.Header = req.Header
 	service := determineAWSServiceFromHost(req.Host)
 	if service == nil {
 		return nil, fmt.Errorf("unable to determine service from host: %s", req.Host)
