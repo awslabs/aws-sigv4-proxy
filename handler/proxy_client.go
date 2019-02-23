@@ -66,7 +66,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	proxyReq.Header = req.Header
+
 	service := determineAWSServiceFromHost(req.Host)
 	if service == nil {
 		return nil, fmt.Errorf("unable to determine service from host: %s", req.Host)
@@ -74,6 +74,15 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 
 	if err := p.sign(proxyReq, service); err != nil {
 		return nil, err
+	}
+
+	// add headers after request is signed
+	for k, vv := range req.Header {
+		if _, ok := proxyReq.Header[k]; !ok {
+			for _, v := range vv {
+				proxyReq.Header.Add(k, v)
+			}
+		}
 	}
 
 	if log.GetLevel() == log.DebugLevel {
@@ -89,11 +98,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
 		b, _ := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
 		log.WithField("message", string(b)).Error("error proxying request")
-		return nil, fmt.Errorf("unable to proxy request: %s %s", resp.Status, string(b))
 	}
 
 	return resp, nil
