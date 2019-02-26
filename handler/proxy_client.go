@@ -57,6 +57,16 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 	return err
 }
 
+func copyHeaderWithoutOverwrite(dst, src http.Header) {
+	for k, vv := range src {
+		if _, ok := dst[k]; !ok {
+			for _, v := range vv {
+				dst.Add(k, v)
+			}
+		}
+	}
+}
+
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL := *req.URL
 	proxyURL.Host = req.Host
@@ -76,14 +86,8 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	// add headers after request is signed
-	for k, vv := range req.Header {
-		if _, ok := proxyReq.Header[k]; !ok {
-			for _, v := range vv {
-				proxyReq.Header.Add(k, v)
-			}
-		}
-	}
+	// Add origin headers after request is signed (no overwrite)
+	copyHeaderWithoutOverwrite(proxyReq.Header, req.Header)
 
 	if log.GetLevel() == log.DebugLevel {
 		proxyReqDump, err := httputil.DumpRequest(proxyReq, true)
