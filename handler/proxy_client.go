@@ -14,6 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var rewrites = map[string]string{}
+
 // Client is an interface to make testing http.Client calls easier
 type Client interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -24,6 +26,16 @@ type ProxyClient struct {
 	Signer *v4.Signer
 	Client Client
 	Region string
+}
+
+func init() {
+	keys := []string{"SERVICE_HOST"}
+	for _, key := range keys {
+		value := os.Getenv(key)
+		if value != "" {
+			rewrites[key] = value
+		}
+	}
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -58,11 +70,15 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 	return err
 }
 
-func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
-	overwriteHost := os.Getenv("SERVICE_HOST")
-	if overwriteHost != "" {
-		req.Host = overwriteHost
+func rewriteRequest(req *http.Request) {
+	rewriteHost, exists := rewrites["SERVICE_HOST"]
+	if exists {
+		req.Host = rewriteHost
 	}
+}
+
+func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
+	rewriteRequest(req)
 	proxyURL := *req.URL
 	proxyURL.Host = req.Host
 	proxyURL.Scheme = "https"
