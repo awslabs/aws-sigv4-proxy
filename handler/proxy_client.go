@@ -57,6 +57,16 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 	return err
 }
 
+func copyHeaderWithoutOverwrite(dst, src http.Header) {
+	for k, vv := range src {
+		if _, ok := dst[k]; !ok {
+			for _, v := range vv {
+				dst.Add(k, v)
+			}
+		}
+	}
+}
+
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL := *req.URL
 	proxyURL.Host = req.Host
@@ -76,6 +86,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
+	// Add origin headers after request is signed (no overwrite)
+	copyHeaderWithoutOverwrite(proxyReq.Header, req.Header)
+
 	if log.GetLevel() == log.DebugLevel {
 		proxyReqDump, err := httputil.DumpRequest(proxyReq, true)
 		if err != nil {
@@ -89,11 +102,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
 		b, _ := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
 		log.WithField("message", string(b)).Error("error proxying request")
-		return nil, fmt.Errorf("unable to proxy request: %s %s", resp.Status, string(b))
 	}
 
 	return resp, nil
