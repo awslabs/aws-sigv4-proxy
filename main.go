@@ -9,7 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/awslabs/aws-sigv4-proxy/handler"
-	log "github.com/sirupsen/logrus"
+  "github.com/aws/aws-sdk-go/aws/defaults"
+  log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -27,6 +28,13 @@ func getCredentials() (*credentials.Credentials, error) {
 			Client: ec2metadata.New(session.Must(session.NewSession())),
 		},
 	}
+
+  // If ECS task role endpoint is available add ECS task role to provider chain
+  if uri := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(uri) > 0 {
+    // Just create a default remote client for this?
+    providers = append(providers, defaults.RemoteCredProvider(&aws.Config{}, defaults.Handlers()))
+    log.Print("Remote cred provider added because ECS relative URI found")
+  }
 
 	creds := credentials.NewChainCredentials(providers)
 
