@@ -27,6 +27,11 @@ func init() {
 		host := fmt.Sprintf("execute-api.%s.amazonaws.com", region)
 		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "execute-api"}
 	}
+	// Add elasticsearch endpoints
+	for region := range endpoints.AwsPartition().Regions() {
+		host := fmt.Sprintf("%s.es.amazonaws.com", region)
+		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "es"}
+	}
 }
 
 func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
