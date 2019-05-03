@@ -22,10 +22,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	cfg := defaults.Get().Config
-	creds := cfg.Credentials
-
-	signer := v4.NewSigner(creds)
+	signer := v4.NewSigner(defaults.Get().Config.Credentials)
 
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
