@@ -2,13 +2,9 @@ package main
 
 import (
 	"net/http"
-
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/awslabs/aws-sigv4-proxy/handler"
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -18,25 +14,6 @@ var (
 	port  = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
 )
 
-func getCredentials() (*credentials.Credentials, error) {
-	// Check env var, shared credentials, then finally ec2 instance role
-	providers := []credentials.Provider{
-		&credentials.EnvProvider{},
-		&credentials.SharedCredentialsProvider{},
-		&ec2rolecreds.EC2RoleProvider{
-			Client: ec2metadata.New(session.Must(session.NewSession())),
-		},
-	}
-
-	creds := credentials.NewChainCredentials(providers)
-
-	if _, err := creds.Get(); err != nil {
-		return nil, err
-	}
-
-	return creds, nil
-}
-
 func main() {
 	kingpin.Parse()
 
@@ -45,12 +22,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	creds, err := getCredentials()
-	if err != nil {
-		log.WithError(err).Fatal("unable to get credentials")
-	}
-
-	signer := v4.NewSigner(creds)
+	signer := v4.NewSigner(defaults.Get().Config.Credentials)
 
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
