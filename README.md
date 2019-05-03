@@ -1,13 +1,19 @@
 # AWS SigV4 Proxy
 
-The AWS SigV4 Proxy will sign incoming HTTP requests and forward them to the host specified in the `Host` header.  
+The AWS SigV4 Proxy will sign incoming HTTP requests and forward them to the host specified in the `Host` header.
 
 ## Getting Started
 
 Build and run the Proxy
 
 ```go
-* The proxy will try to find credentials in the environment, shared credentials file, then the ec2 instance
+The proxy uses the default AWS SDK for Go credential search path:
+
+* Environment variables.
+* Shared credentials file.
+* IAM role for Amazon EC2 or ECS task role
+
+More information can be found in the [developer guide](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html)
 
 docker build -t aws-sigv4-proxy .
 
@@ -17,8 +23,6 @@ docker run --rm -ti \
   -e 'AWS_SECRET_ACCESS_KEY=<YOUR SECRET ACCESS KEY>' \
   -p 8080:8080 \
   aws-sigv4-proxy -v
-
-***** or ******
 
 # Shared Credentials
 docker run --rm -ti \
@@ -56,4 +60,4 @@ curl -H 'host: <REST_API_ID>.execute-api.<AWS_REGION>.amazonaws.com' http://loca
 
 ## License
 
-This library is licensed under the Apache 2.0 License. 
+This library is licensed under the Apache 2.0 License.
