@@ -12,6 +12,7 @@ import (
 var (
 	debug = kingpin.Flag("verbose", "enable additional logging").Short('v').Bool()
 	port  = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
+	strip = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 
 	signer := v4.NewSigner(defaults.Get().Config.Credentials)
 
+	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
 	log.Fatal(
@@ -31,6 +33,7 @@ func main() {
 			ProxyClient: &handler.ProxyClient{
 				Signer: signer,
 				Client: http.DefaultClient,
+				Strip: *strip,
 			},
 		}),
 	)

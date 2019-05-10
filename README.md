@@ -2,6 +2,8 @@
 
 The AWS SigV4 Proxy will sign incoming HTTP requests and forward them to the host specified in the `Host` header.
 
+You can strip out arbirtary headers from the incoming request by using the -s option.
+
 ## Getting Started
 
 Build and run the Proxy
@@ -30,6 +32,13 @@ docker run --rm -ti \
   -p 8080:8080 \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v
+
+# Stripping out old Sigv2 authorization headers
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v -s Authorization
 ```
 
 ## Examples
