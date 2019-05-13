@@ -23,6 +23,7 @@ type ProxyClient struct {
 	Signer *v4.Signer
 	Client Client
 	Region string
+	StripRequestHeaders []string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -72,6 +73,14 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL.Host = req.Host
 	proxyURL.Scheme = "https"
 
+	if log.GetLevel() == log.DebugLevel {
+		initialReqDump, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			log.WithError(err).Error("unable to dump request")
+		}
+		log.WithField("request", string(initialReqDump)).Debug("Initial request dump:")
+	}
+
 	proxyReq, err := http.NewRequest(req.Method, proxyURL.String(), req.Body)
 	if err != nil {
 		return nil, err
@@ -84,6 +93,12 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 
 	if err := p.sign(proxyReq, service); err != nil {
 		return nil, err
+	}
+
+	// Remove any headers specified
+	for _, header := range p.StripRequestHeaders {
+		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
+		req.Header.Del(header)
 	}
 
 	// Add origin headers after request is signed (no overwrite)
