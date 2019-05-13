@@ -23,7 +23,7 @@ type ProxyClient struct {
 	Signer *v4.Signer
 	Client Client
 	Region string
-	Strip []string
+	StripRequestHeaders []string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -96,7 +96,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	// Remove any headers specified
-	for _, header := range p.Strip {
+	for _, header := range p.StripRequestHeaders {
 		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
 		req.Header.Del(header)
 	}

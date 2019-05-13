@@ -33,7 +33,7 @@ func main() {
 			ProxyClient: &handler.ProxyClient{
 				Signer: signer,
 				Client: http.DefaultClient,
-				Strip: *strip,
+				StripRequestHeaders: *strip,
 			},
 		}),
 	)
