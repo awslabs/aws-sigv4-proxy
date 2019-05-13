@@ -32,13 +32,6 @@ docker run --rm -ti \
   -p 8080:8080 \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v
-
-# Stripping out old Sigv2 authorization headers
-docker run --rm -ti \
-  -v ~/.aws:/root/.aws \
-  -p 8080:8080 \
-  -e 'AWS_PROFILE=<SOME PROFILE>' \
-  aws-sigv4-proxy -v -s Authorization
 ```
 
 ## Examples
@@ -60,6 +53,15 @@ curl -s -H 'host: sqs.<AWS_REGION>.amazonaws.com' 'http://localhost:8080/<AWS_AC
 API Gateway
 ```sh
 curl -H 'host: <REST_API_ID>.execute-api.<AWS_REGION>.amazonaws.com' http://localhost:8080/<STAGE>/<PATH>
+```
+
+Running the service and stripping out sigv2 authorization headers
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v -s Authorization
 ```
 
 ## Reference
