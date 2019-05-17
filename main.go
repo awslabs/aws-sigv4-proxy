@@ -23,7 +23,13 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	// S3 signing is specialized and requires no escaping of the URI path,
+	// so we have a default signer and an S3-specific signer.
 	signer := v4.NewSigner(defaults.Get().Config.Credentials)
+	s3Signer := v4.NewSigner(
+		signer.Credentials,
+		func(s *v4.Signer) {s.DisableURIPathEscaping = true},
+	)
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
@@ -32,6 +38,7 @@ func main() {
 		http.ListenAndServe(*port, &handler.Handler{
 			ProxyClient: &handler.ProxyClient{
 				Signer: signer,
+				S3Signer: s3Signer,
 				Client: http.DefaultClient,
 				StripRequestHeaders: *strip,
 			},

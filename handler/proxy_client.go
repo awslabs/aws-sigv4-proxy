@@ -21,6 +21,7 @@ type Client interface {
 // ProxyClient implements the Client interface
 type ProxyClient struct {
 	Signer *v4.Signer
+	S3Signer *v4.Signer
 	Client Client
 	Region string
 	StripRequestHeaders []string
@@ -44,7 +45,7 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 		_, err = p.Signer.Sign(req, body, service.SigningName, service.SigningRegion, time.Now())
 		break
 	case "s3":
-		_, err = p.Signer.Presign(req, body, service.SigningName, service.SigningRegion, time.Duration(time.Hour), time.Now())
+		_, err = p.S3Signer.Presign(req, body, service.SigningName, service.SigningRegion, time.Duration(time.Hour), time.Now())
 		break
 	default:
 		err = fmt.Errorf("unable to sign with specified signing method %s for service %s", service.SigningMethod, service.SigningName)

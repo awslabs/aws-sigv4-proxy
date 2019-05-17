@@ -138,7 +138,7 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 		},
 		{
-			name: "should return request when everything 👍 (presign codepath)",
+			name: "should return request when everything 👍 (s3/presign codepath)",
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
@@ -146,7 +146,7 @@ func TestProxyClient_Do(t *testing.T) {
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				S3Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
 				Region: "us-west-2",
 				Client: &mockHTTPClient{},
 			},
