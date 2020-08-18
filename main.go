@@ -13,6 +13,9 @@ var (
 	debug = kingpin.Flag("verbose", "enable additional logging").Short('v').Bool()
 	port  = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
 	strip = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
+	signingNameOverride = kingpin.Flag("name", "AWS Service to sign for").String();
+	hostOverride = kingpin.Flag("host", "Host to proxy to").String();
+	regionOverride = kingpin.Flag("region", "AWS region to sign for").String();
 )
 
 func main() {
@@ -34,6 +37,9 @@ func main() {
 				Signer: signer,
 				Client: http.DefaultClient,
 				StripRequestHeaders: *strip,
+				SigningNameOverride: *signingNameOverride,
+				HostOverride: *hostOverride,
+				RegionOverride: *regionOverride,
 			},
 		}),
 	)

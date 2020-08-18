@@ -22,8 +22,10 @@ type Client interface {
 type ProxyClient struct {
 	Signer *v4.Signer
 	Client Client
-	Region string
 	StripRequestHeaders []string
+	SigningNameOverride string
+	HostOverride string
+	RegionOverride string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -70,7 +72,12 @@ func copyHeaderWithoutOverwrite(dst, src http.Header) {
 
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL := *req.URL
-	proxyURL.Host = req.Host
+	if p.HostOverride != "" {
+		proxyURL.Host = p.HostOverride
+
+	} else {
+		proxyURL.Host = req.Host
+	}
 	proxyURL.Scheme = "https"
 
 	if log.GetLevel() == log.DebugLevel {
@@ -86,7 +93,12 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	service := determineAWSServiceFromHost(req.Host)
+	var service *endpoints.ResolvedEndpoint
+	if p.SigningNameOverride != "" && p.RegionOverride != "" {
+		service = &endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", proxyURL.Host), SigningMethod: "v4", SigningRegion: p.RegionOverride, SigningName: p.SigningNameOverride}
+	} else {
+		service = determineAWSServiceFromHost(req.Host)
+	}
 	if service == nil {
 		return nil, fmt.Errorf("unable to determine service from host: %s", req.Host)
 	}

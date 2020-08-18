@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/url"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 type mockHTTPClient struct {
 	Client
+	Request *http.Request
 	Fail bool
 }
 
@@ -19,6 +21,7 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if m.Fail {
 		return nil, fmt.Errorf("mockHTTPClient.Do failed")
 	}
+	m.Request = req
 	return &http.Response{}, nil
 }
 
@@ -37,6 +40,7 @@ func (m *mockProvider) Retrieve() (credentials.Value, error) {
 func TestProxyClient_Do(t *testing.T) {
 	type want struct {
 		resp *http.Response
+		request *http.Request
 		err  error
 	}
 
@@ -54,7 +58,9 @@ func TestProxyClient_Do(t *testing.T) {
 				Host:   "execute-api.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
-			proxyClient: &ProxyClient{},
+			proxyClient: &ProxyClient{
+				Client: &mockHTTPClient{},
+			},
 			want: &want{
 				resp: nil,
 				err:  fmt.Errorf(`net/http: invalid method "💩💩💩💩💩"`),
@@ -70,9 +76,72 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 			proxyClient: &ProxyClient{
 				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
+				})),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: nil,
+				err:  fmt.Errorf(`unable to determine service from host: badservice.host`),
+			},
+		},
+		{
+			name: "should use SignNameOverride and RegionOverride if provided",
+			request: &http.Request{
+				Method: "GET",
+				URL:	&url.URL{},
+				Host:	"badservice.host",
+				Body:	nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
+				})),
+				Client: &mockHTTPClient{},
+				SigningNameOverride: "ec2",
+				RegionOverride: "us-west-2",
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "badservice.host",
+				},
+			},
+		},
+		{
+			name: "should use HostOverride if provided",
+			request: &http.Request{
+				Method: "GET",
+				URL:	&url.URL{},
+				Host:	"badservice.host",
+				Body:	nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
+				})),
+				Client: &mockHTTPClient{},
+				SigningNameOverride: "ec2",
+				RegionOverride: "us-west-2",
+				HostOverride: "host.override",
+			},
+			want: &want{
+				resp: &http.Response{},
+				request: &http.Request{Host: "host.override"},
+				err:  nil,
+			},
+		},
+		{
+			name: "should fail if unable to sign request",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
 					Fail: true,
 				})),
-				Region: "us-west-2",
+				Client: &mockHTTPClient{},
 			},
 			want: &want{
 				resp: nil,
@@ -91,29 +160,11 @@ func TestProxyClient_Do(t *testing.T) {
 				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
 					Fail: true,
 				})),
-				Region: "us-west-2",
+				Client: &mockHTTPClient{},
 			},
 			want: &want{
 				resp: nil,
-				err:  fmt.Errorf(`mockProvider.Retrieve failed`),
-			},
-		},
-		{
-			name: "should fail if unable to sign request",
-			request: &http.Request{
-				Method: "GET",
-				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
-				Body:   nil,
-			},
-			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-					Fail: true,
-				})),
-				Region: "us-west-2",
-			},
-			want: &want{
-				resp: nil,
+				request: nil,
 				err:  fmt.Errorf(`mockProvider.Retrieve failed`),
 			},
 		},
@@ -127,7 +178,6 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 			proxyClient: &ProxyClient{
 				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
-				Region: "us-west-2",
 				Client: &mockHTTPClient{
 					Fail: true,
 				},
@@ -147,12 +197,14 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 			proxyClient: &ProxyClient{
 				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
-				Region: "us-west-2",
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
 				resp: &http.Response{},
 				err:  nil,
+				request: &http.Request{
+					Host: "s3.amazonaws.com",
+				},
 			},
 		},
 		{
@@ -165,23 +217,35 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 			proxyClient: &ProxyClient{
 				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
-				Region: "us-west-2",
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
 				resp: &http.Response{},
 				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// resp, err :=
+			resp, err :=
 			tt.proxyClient.Do(tt.request)
 
-			// assert.Equal(t, tt.want.resp, resp)
-			// assert.Equal(t, tt.want.err, err)
+			assert.Equal(t, tt.want.resp, resp)
+			assert.Equal(t, tt.want.err, err)
+			assert.True(t, verifyRequest(tt.proxyClient.Client.(*mockHTTPClient).Request, tt.want.request))
+			//assert.Equal(t, tt.want.request, tt.request)
 		})
 	}
+}
+
+func verifyRequest(received *http.Request, expected *http.Request) bool {
+	if expected == nil {
+		return received == nil
+	}
+
+	return received.Host == expected.Host
 }
