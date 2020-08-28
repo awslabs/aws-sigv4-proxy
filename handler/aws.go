@@ -40,6 +40,6 @@ func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
 			return &service
 		}
 	}
-
 	return nil
 }
+
