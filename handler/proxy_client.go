@@ -20,12 +20,12 @@ type Client interface {
 
 // ProxyClient implements the Client interface
 type ProxyClient struct {
-	Signer *v4.Signer
-	Client Client
+	Signer              *v4.Signer
+	Client              Client
 	StripRequestHeaders []string
 	SigningNameOverride string
-	HostOverride string
-	RegionOverride string
+	HostOverride        string
+	RegionOverride      string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -127,11 +127,6 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	resp, err := p.Client.Do(proxyReq)
 	if err != nil {
 		return nil, err
-	}
-
-	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
-		b, _ := ioutil.ReadAll(resp.Body)
-		log.WithField("message", string(b)).Error("error proxying request")
 	}
 
 	return resp, nil

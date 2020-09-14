@@ -34,6 +34,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
+		log.WithField("message", buf.String()).Error("error proxying request")
+	}
+
 	// copy headers
 	for k, vals := range resp.Header {
 		for _, v := range vals {
