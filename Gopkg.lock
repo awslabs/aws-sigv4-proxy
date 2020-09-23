@@ -21,7 +21,7 @@
   revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 
 [[projects]]
-  digest = "1:b3127621968b97623373f5b51c8fd188c2716c9c1ce3af572caffec66da28a66"
+  digest = "1:156516fa11d778da7b0a3c012100b7748e39cd219a1eb7c68c7018e147eaecb1"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -33,6 +33,7 @@
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
     "aws/credentials/stscreds",
     "aws/csm",
     "aws/defaults",
@@ -41,20 +42,35 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/context",
+    "internal/ini",
     "internal/sdkio",
+    "internal/sdkmath",
     "internal/sdkrand",
     "internal/sdkuri",
     "internal/shareddefaults",
+    "internal/strings",
+    "internal/sync/singleflight",
     "private/protocol",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/xml/xmlutil",
     "service/sts",
+    "service/sts/stsiface",
   ]
   pruneopts = "UT"
-  revision = "3e9c4ca8d7fc8d22f0d21d50120186f73d2fdf1a"
-  version = "v1.15.27"
+  revision = "cd011ffd0a374d4b4f0d752863ef49b2ec76ef7f"
+  version = "v1.34.29"
+
+[[projects]]
+  branch = "master"
+  digest = "1:d7b57f94c4bd5d925185da8823a058757e12fe4743af630b4bc1d8e5fe150069"
+  name = "github.com/awslabs/aws-sigv4-proxy"
+  packages = ["handler"]
+  pruneopts = "UT"
+  revision = "06fe86b83bc34ec56ad2e2518a5edb937fcf95e7"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -65,19 +81,11 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:5abd6a22805b1919f6a6bca0ae58b13cef1f3412812f38569978f43ef02743d4"
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "5cf292cae48347c2490ac1a58fe36735fb78df7e"
-  version = "v1.38.2"
-
-[[projects]]
-  digest = "1:e22af8c7518e1eab6f2eab2b7d7558927f816262586cd6ed9f349c97a6c285c4"
+  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0b12d6b5"
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -135,11 +143,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/aws/aws-sdk-go/aws/credentials",
-    "github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds",
-    "github.com/aws/aws-sdk-go/aws/ec2metadata",
     "github.com/aws/aws-sdk-go/aws/endpoints",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/aws/signer/v4",
+    "github.com/awslabs/aws-sigv4-proxy/handler",
     "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",
     "gopkg.in/alecthomas/kingpin.v2",
