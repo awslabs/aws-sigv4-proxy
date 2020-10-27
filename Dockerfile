@@ -1,17 +1,20 @@
-FROM golang:1.11-alpine3.8 as build
+FROM golang:alpine3.12 as build
 
 RUN apk add -U --no-cache ca-certificates git bash
 
-COPY ./ /go/src/github.com/awslabs/aws-sigv4-proxy
-WORKDIR /go/src/github.com/awslabs/aws-sigv4-proxy
+RUN mkdir /aws-sigv4-proxy
+WORKDIR /aws-sigv4-proxy
+COPY go.mod .
+COPY go.sum .
 
-RUN go build -o app github.com/awslabs/aws-sigv4-proxy && \
-    mv ./app /go/bin
+RUN go env -w GOPROXY=direct
+RUN go mod download
+COPY . .
 
-FROM alpine:3.8
+RUN go build -o /go/bin/aws-sigv4-proxy
 
-WORKDIR /opt/
+FROM alpine:3.12
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /go/bin/app /opt/
+COPY --from=build /go/bin/aws-sigv4-proxy /go/bin/aws-sigv4-proxy
 
-ENTRYPOINT [ "/opt/app" ]
+ENTRYPOINT [ "/go/bin/aws-sigv4-proxy" ]

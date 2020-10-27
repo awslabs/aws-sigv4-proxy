@@ -3,9 +3,9 @@ package main
 import (
     "net/http"
 
+    "aws-sigv4-proxy/handler"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/aws/signer/v4"
-    "github.com/awslabs/aws-sigv4-proxy/handler"
     log "github.com/sirupsen/logrus"
     "gopkg.in/alecthomas/kingpin.v2"
 )
