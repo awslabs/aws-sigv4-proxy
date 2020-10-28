@@ -25,21 +25,20 @@ func init() {
 	// Add api gateway endpoints
 	for region := range endpoints.AwsPartition().Regions() {
 		host := fmt.Sprintf("execute-api.%s.amazonaws.com", region)
-		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "execute-api"}
+		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "execute-api", PartitionID: "aws"}
 	}
 	// Add elasticsearch endpoints
 	for region := range endpoints.AwsPartition().Regions() {
 		host := fmt.Sprintf("%s.es.amazonaws.com", region)
-		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "es"}
+		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "es", PartitionID: "aws"}
 	}
 }
 
 func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
 	for endpoint, service := range services {
-		if strings.Contains(host, endpoint) {
+		if host == endpoint {
 			return &service
 		}
 	}
 	return nil
 }
-
