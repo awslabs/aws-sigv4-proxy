@@ -64,6 +64,15 @@ docker run --rm -ti \
   aws-sigv4-proxy -v -s Authorization
 ```
 
+Running the service with Assume Role to use temporary credentials
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v --role-arn <ARN OF ROLE TO ASSUME>
+```
+
 ## Reference
 
 - [AWS SigV4 signing Docs ](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
