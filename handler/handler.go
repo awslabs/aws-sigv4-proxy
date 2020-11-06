@@ -2,7 +2,8 @@ package handler
 
 import (
 	"bytes"
-	"io"
+    "fmt"
+    "io"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -20,8 +21,9 @@ func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.ProxyClient.Do(r)
 	if err != nil {
-		log.WithError(err).Error("unable to proxy request")
-		h.write(w, http.StatusBadRequest, []byte(err.Error()))
+	    errorMsg := "unable to proxy request"
+		log.WithError(err).Error(errorMsg)
+		h.write(w, http.StatusBadGateway, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
 		return
 	}
 	defer resp.Body.Close()
@@ -29,8 +31,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// read response body
 	buf := bytes.Buffer{}
 	if _, err := io.Copy(&buf, resp.Body); err != nil {
-		log.WithError(err).Error("unable to proxy request")
-		h.write(w, http.StatusInternalServerError, []byte(err.Error()))
+	    errorMsg := "error while reading response from upstream"
+		log.WithError(err).Error(errorMsg)
+		h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
 		return
 	}
 

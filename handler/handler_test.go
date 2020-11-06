@@ -37,14 +37,14 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		want    *want
 	}{
 		{
-			name: "responds with 400 if proxy request fails",
+			name: "responds with 502 if proxy request fails",
 			handler: &Handler{
 				ProxyClient: &mockProxyClient{Fail: true},
 			},
 			request: &http.Request{},
 			want: &want{
-				statusCode: http.StatusBadRequest,
-				body:       []byte(`mockProxyClient.Do failed`),
+				statusCode: http.StatusBadGateway,
+				body:       []byte(`unable to proxy request - mockProxyClient.Do failed`),
 				header:     http.Header{},
 			},
 		},
