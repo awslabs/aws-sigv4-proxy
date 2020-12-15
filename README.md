@@ -75,7 +75,8 @@ docker run --rm -ti \
 
 ## Reference
 
-- [AWS SigV4 signing Docs ](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
+- [AWS SigV4 Signing Docs ](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
+- [AWS SigV4 Admission Controller](https://github.com/aws-observability/aws-sigv4-proxy-admission-controller) - Used to install the AWS SigV4 Proxy as a sidecar
 
 
 ## License
