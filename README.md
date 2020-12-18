@@ -73,6 +73,15 @@ docker run --rm -ti \
   aws-sigv4-proxy -v --role-arn <ARN OF ROLE TO ASSUME>
 ```
 
+Include service name & region overrides when you notice errors like `unable to determine service from host` for API gateway, for example.
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v --name execute-api --region us-east-1
+```
+
 ## Reference
 
 - [AWS SigV4 Signing Docs ](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
