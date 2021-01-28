@@ -86,6 +86,30 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				body: []byte(`proxy call successful`),
 			},
 		},
+		{
+			name: "uses host config-set if a match is found",
+			handler: &Handler{
+				ProxyClients: map[string]Client{
+					"default":  &mockProxyClient{Fail: true},
+					"example.com": &mockProxyClient{
+						Response: &http.Response{
+							Header: http.Header{
+								"test": []string{"this came from the target host"},
+							},
+							Body: ioutil.NopCloser(bytes.NewBuffer([]byte(`proxy call successful`))),
+						},
+					},
+				},
+			},
+			request: &http.Request{Host: "example.com"},
+			want: &want{
+				statusCode: http.StatusOK,
+				header: http.Header{
+					"Test": []string{"this came from the target host"},
+				},
+				body: []byte(`proxy call successful`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
