@@ -43,15 +43,15 @@ var (
 )
 
 
-func getSigner(roleArn string) *v4.Signer {
+func getSigner(roleArn *string) *v4.Signer {
     session, err := session.NewSession()
     if err != nil {
         log.Fatal(err)
     }
 
 	var credentials *credentials.Credentials
-	if roleArn != "" {
-	    credentials = stscreds.NewCredentials(session, roleArn, func(p *stscreds.AssumeRoleProvider) {
+	if *roleArn != "" {
+	    credentials = stscreds.NewCredentials(session, *roleArn, func(p *stscreds.AssumeRoleProvider) {
 		    p.RoleSessionName = roleSessionName()
 	    })
 	} else {
@@ -69,7 +69,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	signer := getSigner(*roleArn)
+	signer := getSigner(roleArn)
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
@@ -87,8 +87,7 @@ func main() {
 	for _, configSetYaml := range *configSets {
 		configSet := handler.ConfigSet{}
 
-		err := yaml.Unmarshal([]byte(configSetYaml), &configSet)
-		if err != nil {
+		if err := yaml.Unmarshal([]byte(configSetYaml), &configSet); err != nil {
 			log.Fatalf("error parsing config set: %v", err)
 		}
 
@@ -97,10 +96,10 @@ func main() {
 			"Name": configSet.Name,
 			"Region": configSet.Region,
 			"RoleArn": configSet.RoleArn,
-		}).Infof("Adding config for host")
+		}).Info("Adding config for host")
 
 		clients[configSet.Host] = &handler.ProxyClient{
-			Signer: getSigner(configSet.RoleArn),
+			Signer: getSigner(&configSet.RoleArn),
 			Client: http.DefaultClient,
 			StripRequestHeaders: *strip,
 			SigningNameOverride: configSet.Name,
