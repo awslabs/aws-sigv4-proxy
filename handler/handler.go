@@ -34,7 +34,10 @@ func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	client := h.ProxyClients["default"]
+	client, ok := h.ProxyClients["default"]
+	if !ok {
+		log.Fatal("Default client does not exist, this configuration is not supported")
+	}
 
 	if val, ok := h.ProxyClients[r.Host]; ok {
 		client = val
