@@ -54,7 +54,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		{
 			name: "responds with 502 if proxy request fails",
 			handler: &Handler{
-				ProxyClient: &mockProxyClient{Fail: true},
+				ProxyClients: map[string]Client{"default": &mockProxyClient{Fail: true}},
 			},
 			request: &http.Request{},
 			want: &want{
@@ -66,12 +66,14 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		{
 			name: "responds with proxied response if everything is 👍",
 			handler: &Handler{
-				ProxyClient: &mockProxyClient{
-					Response: &http.Response{
-						Header: http.Header{
-							"test": []string{"header"},
+				ProxyClients: map[string]Client{
+					"default": &mockProxyClient{
+						Response: &http.Response{
+							Header: http.Header{
+								"test": []string{"header"},
+							},
+							Body: ioutil.NopCloser(bytes.NewBuffer([]byte(`proxy call successful`))),
 						},
-						Body: ioutil.NopCloser(bytes.NewBuffer([]byte(`proxy call successful`))),
 					},
 				},
 			},
@@ -80,6 +82,30 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				statusCode: http.StatusOK,
 				header: http.Header{
 					"Test": []string{"header"},
+				},
+				body: []byte(`proxy call successful`),
+			},
+		},
+		{
+			name: "uses host config-set if a match is found",
+			handler: &Handler{
+				ProxyClients: map[string]Client{
+					"default":  &mockProxyClient{Fail: true},
+					"example.com": &mockProxyClient{
+						Response: &http.Response{
+							Header: http.Header{
+								"test": []string{"this came from the target host"},
+							},
+							Body: ioutil.NopCloser(bytes.NewBuffer([]byte(`proxy call successful`))),
+						},
+					},
+				},
+			},
+			request: &http.Request{Host: "example.com"},
+			want: &want{
+				statusCode: http.StatusOK,
+				header: http.Header{
+					"Test": []string{"this came from the target host"},
 				},
 				body: []byte(`proxy call successful`),
 			},

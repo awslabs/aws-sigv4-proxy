@@ -28,6 +28,7 @@ import (
     "github.com/aws/aws-sdk-go/aws/signer/v4"
     log "github.com/sirupsen/logrus"
     "gopkg.in/alecthomas/kingpin.v2"
+    "gopkg.in/yaml.v2"
 )
 
 var (
@@ -38,16 +39,11 @@ var (
 	signingNameOverride = kingpin.Flag("name", "AWS Service to sign for").String();
 	hostOverride = kingpin.Flag("host", "Host to proxy to").String();
 	regionOverride = kingpin.Flag("region", "AWS region to sign for").String();
+	configSets = kingpin.Flag("config-set", "Host-based configuration overrides for role-arn/name/host/region (encoded as yaml)").Short('c').Strings()
 )
 
-func main() {
-	kingpin.Parse()
 
-	log.SetLevel(log.InfoLevel)
-	if *debug {
-		log.SetLevel(log.DebugLevel)
-	}
-
+func getSigner(roleArn *string) *v4.Signer {
     session, err := session.NewSession()
     if err != nil {
         log.Fatal(err)
@@ -62,21 +58,59 @@ func main() {
 	    credentials = session.Config.Credentials
 	}
 
-	signer := v4.NewSigner(credentials)
+	return v4.NewSigner(credentials)
+}
+
+func main() {
+	kingpin.Parse()
+
+	log.SetLevel(log.InfoLevel)
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	signer := getSigner(roleArn)
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
+	clients := map[string]handler.Client{
+		"default": &handler.ProxyClient{
+			Signer: signer,
+			Client: http.DefaultClient,
+			StripRequestHeaders: *strip,
+			SigningNameOverride: *signingNameOverride,
+			HostOverride: *hostOverride,
+			RegionOverride: *regionOverride,
+		},
+	}
+	for _, configSetYaml := range *configSets {
+		configSet := handler.ConfigSet{}
+
+		if err := yaml.Unmarshal([]byte(configSetYaml), &configSet); err != nil {
+			log.Fatalf("error parsing config set: %v", err)
+		}
+
+		log.WithFields(log.Fields{
+			"Host": configSet.Host,
+			"Name": configSet.Name,
+			"Region": configSet.Region,
+			"RoleArn": configSet.RoleArn,
+		}).Info("Adding config for host")
+
+		clients[configSet.Host] = &handler.ProxyClient{
+			Signer: getSigner(&configSet.RoleArn),
+			Client: http.DefaultClient,
+			StripRequestHeaders: *strip,
+			SigningNameOverride: configSet.Name,
+			HostOverride: configSet.Host,
+			RegionOverride: configSet.Region,
+		}
+	}
+
 	log.Fatal(
 		http.ListenAndServe(*port, &handler.Handler{
-			ProxyClient: &handler.ProxyClient{
-				Signer: signer,
-				Client: http.DefaultClient,
-				StripRequestHeaders: *strip,
-				SigningNameOverride: *signingNameOverride,
-				HostOverride: *hostOverride,
-				RegionOverride: *regionOverride,
-			},
+			ProxyClients: clients,
 		}),
 	)
 }

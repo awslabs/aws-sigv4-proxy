@@ -25,7 +25,7 @@ import (
 )
 
 type Handler struct {
-	ProxyClient Client
+	ProxyClients map[string]Client
 }
 
 func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
@@ -34,7 +34,16 @@ func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.ProxyClient.Do(r)
+	client, ok := h.ProxyClients["default"]
+	if !ok {
+		log.Fatal("Default client does not exist, this configuration is not supported")
+	}
+
+	if val, ok := h.ProxyClients[r.Host]; ok {
+		client = val
+	}
+
+	resp, err := client.Do(r)
 	if err != nil {
 	    errorMsg := "unable to proxy request"
 		log.WithError(err).Error(errorMsg)
