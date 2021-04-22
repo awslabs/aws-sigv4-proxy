@@ -17,9 +17,10 @@ package handler
 
 import (
 	"bytes"
-    "fmt"
-    "io"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -39,13 +40,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Default client does not exist, this configuration is not supported")
 	}
 
+	wildcardHost := "*" + strings.TrimLeftFunc(r.Host, func(r rune) bool { return r != '.' })
+
 	if val, ok := h.ProxyClients[r.Host]; ok {
+		client = val
+	} else if val, ok := h.ProxyClients[wildcardHost]; ok {
 		client = val
 	}
 
 	resp, err := client.Do(r)
 	if err != nil {
-	    errorMsg := "unable to proxy request"
+		errorMsg := "unable to proxy request"
 		log.WithError(err).Error(errorMsg)
 		h.write(w, http.StatusBadGateway, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
 		return
@@ -55,7 +60,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// read response body
 	buf := bytes.Buffer{}
 	if _, err := io.Copy(&buf, resp.Body); err != nil {
-	    errorMsg := "error while reading response from upstream"
+		errorMsg := "error while reading response from upstream"
 		log.WithError(err).Error(errorMsg)
 		h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
 		return
