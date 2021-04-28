@@ -144,6 +144,13 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode == 307 || resp.StatusCode == 308 {
+		loc, _ := resp.Location()
+		if loc.Hostname() == proxyURL.Host {
+			loc.Host = loc.Hostname()
+		}
+		resp.Header["Location"] = []string{loc.String()}
+	}
 
 	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
 		b, _ := ioutil.ReadAll(resp.Body)
