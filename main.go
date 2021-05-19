@@ -20,6 +20,7 @@ import (
     "os"
     "strconv"
     "time"
+    "crypto/tls"
 
     "aws-sigv4-proxy/handler"
     "github.com/aws/aws-sdk-go/aws/credentials"
@@ -38,6 +39,7 @@ var (
 	signingNameOverride = kingpin.Flag("name", "AWS Service to sign for").String();
 	hostOverride = kingpin.Flag("host", "Host to proxy to").String();
 	regionOverride = kingpin.Flag("region", "AWS region to sign for").String();
+	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
 )
 
 func main() {
@@ -52,6 +54,11 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+
+	if *disableSSLVerification {
+		log.Warn("Peer SSL Certificate validation is DISABLED")
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
 
 	var credentials *credentials.Credentials
 	if *roleArn != "" {
