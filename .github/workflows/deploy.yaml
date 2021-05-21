@@ -1,0 +1,24 @@
+name: Deploy
+
+on:
+  push:
+    # branches:
+    #   - master
+
+jobs:
+  build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Build Docker image
+        run: docker build -t emyann/aws-sigv4-proxy .
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Push docker image
+        run: docker images
