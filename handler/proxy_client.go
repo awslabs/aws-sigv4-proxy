@@ -144,10 +144,5 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
-		b, _ := ioutil.ReadAll(resp.Body)
-		log.WithField("message", string(b)).Error("error proxying request")
-	}
-
 	return resp, nil
 }
