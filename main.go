@@ -36,7 +36,7 @@ import (
 
 var (
 	debug                  = kingpin.Flag("verbose", "Enable additional logging, implies all the log-* options").Short('v').Bool()
-	logFailedResponse      = kingpin.Flag("log-failed-request", "Log 4xx and 5xx response body").Bool()
+	logFailedResponse      = kingpin.Flag("log-failed-requests", "Log 4xx and 5xx response body").Bool()
 	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
 	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
