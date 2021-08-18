@@ -51,7 +51,7 @@ type awsLoggerAdapter struct {
 }
 
 func (awsLoggerAdapter) Log(args ...interface{}) {
-	log.Info(args)
+	log.Info(args...)
 }
 
 func main() {
