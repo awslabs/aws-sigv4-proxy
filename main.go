@@ -35,8 +35,9 @@ import (
 )
 
 var (
-	debug                  = kingpin.Flag("verbose", "enable additional logging, implies log-failed-request").Short('v').Bool()
-	logFailedResponse      = kingpin.Flag("log-failed-request", "Print 4xx and 5xx response body").Bool()
+	debug                  = kingpin.Flag("verbose", "Enable additional logging, implies all the log-* options").Short('v').Bool()
+	logFailedResponse      = kingpin.Flag("log-failed-request", "Log 4xx and 5xx response body").Bool()
+	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
 	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
@@ -45,6 +46,13 @@ var (
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
 )
+
+type awsLoggerAdapter struct {
+}
+
+func (awsLoggerAdapter) Log(args ...interface{}) {
+	log.Info(args)
+}
 
 func main() {
 	kingpin.Parse()
@@ -88,7 +96,12 @@ func main() {
 		credentials = session.Config.Credentials
 	}
 
-	signer := v4.NewSigner(credentials)
+	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
+		if *logSinging || *debug {
+			s.Logger = awsLoggerAdapter{}
+			s.Debug = aws.LogDebugWithSigning
+		}
+	})
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
