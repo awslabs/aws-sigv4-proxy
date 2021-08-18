@@ -152,8 +152,8 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 			WithField("message", string(b)).
 			Error("error proxying request")
 
-		// Need to "reset" the response body because we consumed the stream above, otherwise empty body
-		// returned to the caller.
+		// Need to "reset" the response body because we consumed the stream above, otherwise caller will
+		// get empty body.
 		resp.Body = ioutil.NopCloser(bytes.NewBuffer(b))
 	}
 
