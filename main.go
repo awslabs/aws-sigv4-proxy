@@ -29,14 +29,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
-	debug                  = kingpin.Flag("verbose", "enable additional logging").Short('v').Bool()
-	port                   = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
+	debug                  = kingpin.Flag("verbose", "enable additional logging, implies log-failed-request").Short('v').Bool()
+	logFailedResponse      = kingpin.Flag("log-failed-request", "Print 4xx and 5xx response body").Bool()
+	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
 	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
@@ -101,6 +102,7 @@ func main() {
 				SigningNameOverride: *signingNameOverride,
 				HostOverride:        *hostOverride,
 				RegionOverride:      *regionOverride,
+				LogFailedRequest:    *logFailedResponse,
 			},
 		}),
 	)
