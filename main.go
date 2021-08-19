@@ -50,6 +50,7 @@ var (
 type awsLoggerAdapter struct {
 }
 
+// Log implements aws.Logger.Log
 func (awsLoggerAdapter) Log(args ...interface{}) {
 	log.Info(args...)
 }
