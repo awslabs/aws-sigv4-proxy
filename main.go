@@ -29,14 +29,16 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
-	debug                  = kingpin.Flag("verbose", "enable additional logging").Short('v').Bool()
-	port                   = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
+	debug                  = kingpin.Flag("verbose", "Enable additional logging, implies all the log-* options").Short('v').Bool()
+	logFailedResponse      = kingpin.Flag("log-failed-requests", "Log 4xx and 5xx response body").Bool()
+	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
+	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
 	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
@@ -44,6 +46,14 @@ var (
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
 )
+
+type awsLoggerAdapter struct {
+}
+
+// Log implements aws.Logger.Log
+func (awsLoggerAdapter) Log(args ...interface{}) {
+	log.Info(args...)
+}
 
 func main() {
 	kingpin.Parse()
@@ -87,7 +97,12 @@ func main() {
 		credentials = session.Config.Credentials
 	}
 
-	signer := v4.NewSigner(credentials)
+	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
+		if *logSinging || *debug {
+			s.Logger = awsLoggerAdapter{}
+			s.Debug = aws.LogDebugWithSigning
+		}
+	})
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
@@ -101,6 +116,7 @@ func main() {
 				SigningNameOverride: *signingNameOverride,
 				HostOverride:        *hostOverride,
 				RegionOverride:      *regionOverride,
+				LogFailedRequest:    *logFailedResponse,
 			},
 		}),
 	)

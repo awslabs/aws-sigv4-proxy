@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,12 +35,13 @@ type Client interface {
 
 // ProxyClient implements the Client interface
 type ProxyClient struct {
-	Signer *v4.Signer
-	Client Client
+	Signer              *v4.Signer
+	Client              Client
 	StripRequestHeaders []string
 	SigningNameOverride string
-	HostOverride string
-	RegionOverride string
+	HostOverride        string
+	RegionOverride      string
+	LogFailedRequest    bool
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -144,9 +145,16 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if log.GetLevel() == log.DebugLevel && resp.StatusCode >= 400 {
+	if (p.LogFailedRequest || log.GetLevel() == log.DebugLevel) && resp.StatusCode >= 400 {
 		b, _ := ioutil.ReadAll(resp.Body)
-		log.WithField("message", string(b)).Error("error proxying request")
+		log.WithField("request", fmt.Sprintf("%s %s", proxyReq.Method, proxyReq.URL)).
+			WithField("status_code", resp.StatusCode).
+			WithField("message", string(b)).
+			Error("error proxying request")
+
+		// Need to "reset" the response body because we consumed the stream above, otherwise caller will
+		// get empty body.
+		resp.Body = ioutil.NopCloser(bytes.NewBuffer(b))
 	}
 
 	return resp, nil
