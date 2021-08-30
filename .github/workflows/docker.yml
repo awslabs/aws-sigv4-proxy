@@ -10,6 +10,7 @@ jobs:
           repository: botpress/actions
           token: ${{ secrets.PAT }}
           path: "@actions"
+          ref: main
       - uses: ./@actions/docker
         with:
           repository: aws-sigv4-proxy
