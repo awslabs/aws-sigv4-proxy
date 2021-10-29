@@ -45,6 +45,7 @@ var (
 	hostOverride           = kingpin.Flag("host", "Host to proxy to").String()
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
+	unsignedPayload        = kingpin.Flag("unsigned-payload", "Use unsigned payload for signing").Bool()
 )
 
 type awsLoggerAdapter struct {
@@ -103,6 +104,9 @@ func main() {
 			s.Debug = aws.LogDebugWithSigning
 		}
 	})
+	if *unsignedPayload {
+		signer.UnsignedPayload = true
+	}
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
