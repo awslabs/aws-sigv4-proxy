@@ -17,10 +17,12 @@ package handler
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
@@ -29,7 +31,7 @@ import (
 type mockHTTPClient struct {
 	Client
 	Request *http.Request
-	Fail bool
+	Fail    bool
 }
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -54,9 +56,10 @@ func (m *mockProvider) Retrieve() (credentials.Value, error) {
 
 func TestProxyClient_Do(t *testing.T) {
 	type want struct {
-		resp *http.Response
+		resp    *http.Response
 		request *http.Request
-		err  error
+		service *endpoints.ResolvedEndpoint
+		err     error
 	}
 
 	tests := []struct {
@@ -70,7 +73,7 @@ func TestProxyClient_Do(t *testing.T) {
 			request: &http.Request{
 				Method: "💩💩💩💩💩",
 				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
+				Host:   "ec2.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
@@ -90,8 +93,7 @@ func TestProxyClient_Do(t *testing.T) {
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
@@ -103,16 +105,15 @@ func TestProxyClient_Do(t *testing.T) {
 			name: "should use SignNameOverride and RegionOverride if provided",
 			request: &http.Request{
 				Method: "GET",
-				URL:	&url.URL{},
-				Host:	"badservice.host",
-				Body:	nil,
+				URL:    &url.URL{},
+				Host:   "badservice.host",
+				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
-				Client: &mockHTTPClient{},
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:              &mockHTTPClient{},
 				SigningNameOverride: "ec2",
-				RegionOverride: "us-west-2",
+				RegionOverride:      "us-west-2",
 			},
 			want: &want{
 				resp: &http.Response{},
@@ -120,28 +121,43 @@ func TestProxyClient_Do(t *testing.T) {
 				request: &http.Request{
 					Host: "badservice.host",
 				},
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://badservice.host",
+					PartitionID:        "",
+					SigningRegion:      "us-west-2",
+					SigningName:        "ec2",
+					SigningNameDerived: false,
+					SigningMethod:      "v4",
+				},
 			},
 		},
 		{
 			name: "should use HostOverride if provided",
 			request: &http.Request{
 				Method: "GET",
-				URL:	&url.URL{},
-				Host:	"badservice.host",
-				Body:	nil,
+				URL:    &url.URL{},
+				Host:   "badservice.host",
+				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
-				Client: &mockHTTPClient{},
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:              &mockHTTPClient{},
 				SigningNameOverride: "ec2",
-				RegionOverride: "us-west-2",
-				HostOverride: "host.override",
+				RegionOverride:      "us-west-2",
+				HostOverride:        "host.override",
 			},
 			want: &want{
-				resp: &http.Response{},
+				resp:    &http.Response{},
 				request: &http.Request{Host: "host.override"},
-				err:  nil,
+				err:     nil,
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://host.override",
+					PartitionID:        "",
+					SigningRegion:      "us-west-2",
+					SigningName:        "ec2",
+					SigningNameDerived: false,
+					SigningMethod:      "v4",
+				},
 			},
 		},
 		{
@@ -149,7 +165,7 @@ func TestProxyClient_Do(t *testing.T) {
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
+				Host:   "monitoring.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
@@ -168,7 +184,7 @@ func TestProxyClient_Do(t *testing.T) {
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
+				Host:   "monitoring.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
@@ -178,9 +194,9 @@ func TestProxyClient_Do(t *testing.T) {
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
-				resp: nil,
+				resp:    nil,
 				request: nil,
-				err:  fmt.Errorf(`mockProvider.Retrieve failed`),
+				err:     fmt.Errorf(`mockProvider.Retrieve failed`),
 			},
 		},
 		{
@@ -188,7 +204,7 @@ func TestProxyClient_Do(t *testing.T) {
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
+				Host:   "monitoring.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
@@ -220,6 +236,14 @@ func TestProxyClient_Do(t *testing.T) {
 				request: &http.Request{
 					Host: "s3.amazonaws.com",
 				},
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://s3.amazonaws.com",
+					PartitionID:        "aws",
+					SigningRegion:      "us-east-1",
+					SigningName:        "s3",
+					SigningNameDerived: true,
+					SigningMethod:      "s3",
+				},
 			},
 		},
 		{
@@ -227,7 +251,7 @@ func TestProxyClient_Do(t *testing.T) {
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
-				Host:   "execute-api.us-west-2.amazonaws.com",
+				Host:   "monitoring.us-west-2.amazonaws.com",
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
@@ -238,7 +262,71 @@ func TestProxyClient_Do(t *testing.T) {
 				resp: &http.Response{},
 				err:  nil,
 				request: &http.Request{
-					Host: "execute-api.us-west-2.amazonaws.com",
+					Host: "monitoring.us-west-2.amazonaws.com",
+				},
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://monitoring.us-west-2.amazonaws.com",
+					PartitionID:        "aws",
+					SigningRegion:      "us-west-2",
+					SigningName:        "monitoring",
+					SigningNameDerived: true,
+					SigningMethod:      "v4",
+				},
+			},
+		},
+		{
+			name: "should return request when everything 👍 (api gateway)",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "abcdef1234.execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "abcdef1234.execute-api.us-west-2.amazonaws.com",
+				},
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://abcdef1234.execute-api.us-west-2.amazonaws.com",
+					PartitionID:        "aws",
+					SigningRegion:      "us-west-2",
+					SigningName:        "execute-api",
+					SigningNameDerived: false,
+					SigningMethod:      "v4",
+				},
+			},
+		},
+		{
+			name: "should return request when everything 👍 (es)",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "test-abcdefghi.us-west-2.es.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "test-abcdefghi.us-west-2.es.amazonaws.com",
+				},
+				service: &endpoints.ResolvedEndpoint{
+					URL:                "https://test-abcdefghi.us-west-2.es.amazonaws.com",
+					PartitionID:        "aws",
+					SigningRegion:      "us-west-2",
+					SigningName:        "es",
+					SigningNameDerived: false,
+					SigningMethod:      "v4",
 				},
 			},
 		},
@@ -247,12 +335,17 @@ func TestProxyClient_Do(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, err :=
-			tt.proxyClient.Do(tt.request)
+				tt.proxyClient.Do(tt.request)
 
 			assert.Equal(t, tt.want.resp, resp)
 			assert.Equal(t, tt.want.err, err)
+
+			if err == nil {
+				service := tt.proxyClient.serviceForURL(tt.proxyClient.proxyURLForRequest(tt.request))
+				assert.Equal(t, tt.want.service, service)
+			}
+
 			assert.True(t, verifyRequest(tt.proxyClient.Client.(*mockHTTPClient).Request, tt.want.request))
-			//assert.Equal(t, tt.want.request, tt.request)
 		})
 	}
 }

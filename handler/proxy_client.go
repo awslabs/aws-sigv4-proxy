@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -87,14 +88,7 @@ func copyHeaderWithoutOverwrite(dst, src http.Header) {
 }
 
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
-	proxyURL := *req.URL
-	if p.HostOverride != "" {
-		proxyURL.Host = p.HostOverride
-
-	} else {
-		proxyURL.Host = req.Host
-	}
-	proxyURL.Scheme = "https"
+	proxyURL := p.proxyURLForRequest(req)
 
 	if log.GetLevel() == log.DebugLevel {
 		initialReqDump, err := httputil.DumpRequest(req, true)
@@ -109,12 +103,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	var service *endpoints.ResolvedEndpoint
-	if p.SigningNameOverride != "" && p.RegionOverride != "" {
-		service = &endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", proxyURL.Host), SigningMethod: "v4", SigningRegion: p.RegionOverride, SigningName: p.SigningNameOverride}
-	} else {
-		service = determineAWSServiceFromHost(req.Host)
-	}
+	service := p.serviceForURL(proxyURL)
 	if service == nil {
 		return nil, fmt.Errorf("unable to determine service from host: %s", req.Host)
 	}
@@ -158,4 +147,31 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+func (p *ProxyClient) proxyURLForRequest(req *http.Request) url.URL {
+	proxyURL := *req.URL
+	if p.HostOverride != "" {
+		proxyURL.Host = p.HostOverride
+
+	} else {
+		proxyURL.Host = req.Host
+	}
+	proxyURL.Scheme = "https"
+	return proxyURL
+}
+
+func (p *ProxyClient) serviceForURL(url url.URL) *endpoints.ResolvedEndpoint {
+	var service *endpoints.ResolvedEndpoint
+	if p.SigningNameOverride != "" && p.RegionOverride != "" {
+		service = &endpoints.ResolvedEndpoint{
+			URL:           fmt.Sprintf("https://%s", url.Host),
+			SigningMethod: "v4",
+			SigningRegion: p.RegionOverride,
+			SigningName:   p.SigningNameOverride,
+		}
+	} else {
+		service = determineAWSServiceFromHost(url.Host)
+	}
+	return service
 }

@@ -17,12 +17,13 @@ package handler
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 )
 
-var services = map[string]endpoints.ResolvedEndpoint{}
+var services = map[string]*endpoints.ResolvedEndpoint{}
 
 func init() {
 	// Triple nested loop - 😭
@@ -32,28 +33,39 @@ func init() {
 			for _, endpoint := range service.Endpoints() {
 				resolvedEndpoint, _ := endpoint.ResolveEndpoint()
 				host := strings.Replace(resolvedEndpoint.URL, "https://", "", 1)
-				services[host] = resolvedEndpoint
+				services[host] = &resolvedEndpoint
 			}
 		}
 	}
-
-	// Add api gateway endpoints
-	for region := range endpoints.AwsPartition().Regions() {
-		host := fmt.Sprintf("execute-api.%s.amazonaws.com", region)
-		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "execute-api", PartitionID: "aws"}
-	}
-	// Add elasticsearch endpoints
-	for region := range endpoints.AwsPartition().Regions() {
-		host := fmt.Sprintf("%s.es.amazonaws.com", region)
-		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "es", PartitionID: "aws"}
-	}
 }
 
+var apiGatewayRegex = regexp.MustCompile(`^(?P<prefix>[a-zA-Z0-9_-]+)\.execute-api\.(?P<region>[a-zA-Z0-9_-]+)\.amazonaws\.com$`)
+var elasticSearchRegex = regexp.MustCompile(`^(?P<prefix>[a-zA-Z0-9_-]+)\.(?P<region>[a-zA-Z0-9_-]+)\.es\.amazonaws\.com$`)
+
 func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
-	for endpoint, service := range services {
-		if host == endpoint {
-			return &service
+	// handle api gateway endpoints
+	apiGatewayMatches := apiGatewayRegex.FindStringSubmatch(host)
+	if len(apiGatewayMatches) == 3 {
+		return &endpoints.ResolvedEndpoint{
+			URL:           fmt.Sprintf("https://%s", host),
+			SigningMethod: "v4",
+			SigningRegion: apiGatewayMatches[2],
+			SigningName:   "execute-api",
+			PartitionID:   "aws",
 		}
 	}
-	return nil
+	// handle elasticsearch (OpenSearch) endpoints
+	elasticSearchMatches := elasticSearchRegex.FindStringSubmatch(host)
+	if len(elasticSearchMatches) == 3 {
+		return &endpoints.ResolvedEndpoint{
+			URL:           fmt.Sprintf("https://%s", host),
+			SigningMethod: "v4",
+			SigningRegion: elasticSearchMatches[2],
+			SigningName:   "es",
+			PartitionID:   "aws",
+		}
+	}
+
+	endpoint := services[host]
+	return endpoint
 }

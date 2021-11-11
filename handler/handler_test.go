@@ -68,6 +68,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			handler: &Handler{
 				ProxyClient: &mockProxyClient{
 					Response: &http.Response{
+						StatusCode: http.StatusOK,
 						Header: http.Header{
 							"test": []string{"header"},
 						},
