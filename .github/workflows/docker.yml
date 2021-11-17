@@ -14,8 +14,6 @@ jobs:
       - uses: ./@actions/docker
         with:
           repository: aws-sigv4-proxy
-          aws-ecr-policy: "${{ secrets.AWS_ECR_POLICY }}"
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE }}
