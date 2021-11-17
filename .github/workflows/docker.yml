@@ -11,7 +11,7 @@ jobs:
           token: ${{ secrets.PAT }}
           path: "@actions"
           ref: main
-      - uses: ./@actions/docker
+      - uses: ./@actions/build/docker
         with:
           repository: aws-sigv4-proxy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
