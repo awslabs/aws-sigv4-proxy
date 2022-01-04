@@ -1,13 +1,10 @@
-FROM amazonlinux:latest AS build
+ARG GOLANG_VERSION
+FROM golang:${GOLANG_VERSION}-alpine AS build
 
-RUN yum -y update && rm -rf /var/cache/yum/*
-RUN yum install -y  \
-      ca-certificates \
+RUN apk add --no-cache \
       git \
-      bash \
-      go
+      ca-certificates
 
-RUN mkdir /aws-sigv4-proxy
 WORKDIR /aws-sigv4-proxy
 COPY go.mod .
 COPY go.sum .

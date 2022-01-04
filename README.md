@@ -4,6 +4,12 @@ The AWS SigV4 Proxy will sign incoming HTTP requests and forward them to the hos
 
 You can strip out arbirtary headers from the incoming request by using the -s option.
 
+## Oaknorth customization
+
+### Docker build and push
+
+  See https://github.com/OakNorthAI/devops-images/blob/master/aws-sigv4-proxy
+
 ## Getting Started
 
 Build and run the Proxy
