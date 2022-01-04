@@ -16,49 +16,88 @@
 package main
 
 import (
-    "net/http"
-    "os"
-    "strconv"
-    "time"
+	"crypto/tls"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
 
-    "aws-sigv4-proxy/handler"
-    "github.com/aws/aws-sdk-go/aws/credentials"
-    "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-    "github.com/aws/aws-sdk-go/aws/session"
-    "github.com/aws/aws-sdk-go/aws/signer/v4"
-    log "github.com/sirupsen/logrus"
-    "gopkg.in/alecthomas/kingpin.v2"
-    "gopkg.in/yaml.v2"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/aws/session"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
+
+	"aws-sigv4-proxy/handler"
 )
 
 var (
-	debug = kingpin.Flag("verbose", "enable additional logging").Short('v').Bool()
-	port  = kingpin.Flag("port", "port to serve http on").Default(":8080").String()
-	strip = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
-	roleArn = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
-	signingNameOverride = kingpin.Flag("name", "AWS Service to sign for").String();
-	hostOverride = kingpin.Flag("host", "Host to proxy to").String();
-	regionOverride = kingpin.Flag("region", "AWS region to sign for").String();
-	configSets = kingpin.Flag("config-set", "Host-based configuration overrides for role-arn/name/host/region (encoded as yaml)").Short('c').Strings()
+	debug                  = kingpin.Flag("verbose", "Enable additional logging, implies all the log-* options").Short('v').Bool()
+	logFailedResponse      = kingpin.Flag("log-failed-requests", "Log 4xx and 5xx response body").Bool()
+	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
+	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
+	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
+	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
+	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
+	hostOverride           = kingpin.Flag("host", "Host to proxy to").String()
+	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
+	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
+	configSets             = kingpin.Flag("config-set", "Host-based configuration overrides for role-arn/name/host/region (encoded as yaml)").Short('c').Strings()
 )
 
+type awsLoggerAdapter struct {
+}
 
 func getSigner(roleArn *string) *v4.Signer {
-    session, err := session.NewSession()
-    if err != nil {
-        log.Fatal(err)
-    }
+	sessionConfig := aws.Config{}
+	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
+		sessionConfig.STSRegionalEndpoint = endpoints.RegionalSTSEndpoint
+	}
+
+	session, err := session.NewSession(&sessionConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if *regionOverride != "" {
+		session.Config.Region = regionOverride
+	}
+
+	// For STS regional endpoint to be effective config's region must be set.
+	if *session.Config.Region == "" {
+		defaultRegion := "us-east-1"
+		session.Config.Region = &defaultRegion
+	}
+
+	if *disableSSLVerification {
+		log.Warn("Peer SSL Certificate validation is DISABLED")
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
 
 	var credentials *credentials.Credentials
 	if *roleArn != "" {
-	    credentials = stscreds.NewCredentials(session, *roleArn, func(p *stscreds.AssumeRoleProvider) {
-		    p.RoleSessionName = roleSessionName()
-	    })
+		credentials = stscreds.NewCredentials(session, *roleArn, func(p *stscreds.AssumeRoleProvider) {
+			p.RoleSessionName = roleSessionName()
+		})
 	} else {
-	    credentials = session.Config.Credentials
+		credentials = session.Config.Credentials
 	}
 
-	return v4.NewSigner(credentials)
+	return v4.NewSigner(credentials, func(s *v4.Signer) {
+		if *logSinging || *debug {
+			s.Logger = awsLoggerAdapter{}
+			s.Debug = aws.LogDebugWithSigning
+		}
+	})
+}
+
+// Log implements aws.Logger.Log
+func (awsLoggerAdapter) Log(args ...interface{}) {
+	log.Info(args...)
 }
 
 func main() {
@@ -76,12 +115,12 @@ func main() {
 
 	clients := map[string]handler.Client{
 		"default": &handler.ProxyClient{
-			Signer: signer,
-			Client: http.DefaultClient,
+			Signer:              signer,
+			Client:              http.DefaultClient,
 			StripRequestHeaders: *strip,
 			SigningNameOverride: *signingNameOverride,
-			HostOverride: *hostOverride,
-			RegionOverride: *regionOverride,
+			HostOverride:        *hostOverride,
+			RegionOverride:      *regionOverride,
 		},
 	}
 	for _, configSetYaml := range *configSets {
@@ -92,19 +131,20 @@ func main() {
 		}
 
 		log.WithFields(log.Fields{
-			"Host": configSet.Host,
-			"Name": configSet.Name,
-			"Region": configSet.Region,
+			"Host":    configSet.Host,
+			"Name":    configSet.Name,
+			"Region":  configSet.Region,
 			"RoleArn": configSet.RoleArn,
 		}).Info("Adding config for host")
 
 		clients[configSet.Host] = &handler.ProxyClient{
-			Signer: getSigner(&configSet.RoleArn),
-			Client: http.DefaultClient,
+			Signer:              getSigner(&configSet.RoleArn),
+			Client:              http.DefaultClient,
 			StripRequestHeaders: *strip,
 			SigningNameOverride: configSet.Name,
-			HostOverride: configSet.Host,
-			RegionOverride: configSet.Region,
+			HostOverride:        configSet.Host,
+			RegionOverride:      configSet.Region,
+			LogFailedRequest:    *logFailedResponse,
 		}
 	}
 
