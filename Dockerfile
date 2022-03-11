@@ -6,18 +6,15 @@ RUN apk --update add \
 
 RUN mkdir /aws-sigv4-proxy
 WORKDIR /aws-sigv4-proxy
-COPY go.mod .
-COPY go.sum .
+COPY  . .
 
 RUN go env -w GOPROXY=direct
-RUN go mod download
-COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /go/bin/aws-sigv4-proxy
+RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/aws-sigv4-proxy
 
 FROM alpine:latest
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /go/bin/aws-sigv4-proxy /go/bin/aws-sigv4-proxy
+COPY --from=build /aws-sigv4-proxy ./
 
-ENTRYPOINT [ "/go/bin/aws-sigv4-proxy" ]
+ENTRYPOINT [ "./aws-sigv4-proxy" ]
 
