@@ -30,6 +30,7 @@ docker run --rm -ti \
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v
 ```
@@ -37,6 +38,7 @@ docker run --rm -ti \
 ## Examples
 
 S3
+
 ```
 # us-east-1
 curl -s -H 'host: s3.amazonaws.com' http://localhost:8080/<BUCKET_NAME>
@@ -46,38 +48,46 @@ curl -s -H 'host: s3.<BUCKET_REGION>.amazonaws.com' http://localhost:8080/<BUCKE
 ```
 
 SQS
+
 ```sh
 curl -s -H 'host: sqs.<AWS_REGION>.amazonaws.com' 'http://localhost:8080/<AWS_ACCOUNT_ID>/<QUEUE_NAME>?Action=SendMessage&MessageBody=example'
 ```
 
 API Gateway
+
 ```sh
 curl -H 'host: <REST_API_ID>.execute-api.<AWS_REGION>.amazonaws.com' http://localhost:8080/<STAGE>/<PATH>
 ```
 
 Running the service and stripping out sigv2 authorization headers
+
 ```sh
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v -s Authorization
 ```
 
 Running the service with Assume Role to use temporary credentials
+
 ```sh
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v --role-arn <ARN OF ROLE TO ASSUME>
 ```
 
 Include service name & region overrides when you notice errors like `unable to determine service from host` for API gateway, for example.
+
 ```sh
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v --name execute-api --region us-east-1
 ```
@@ -86,7 +96,6 @@ docker run --rm -ti \
 
 - [AWS SigV4 Signing Docs ](https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html)
 - [AWS SigV4 Admission Controller](https://github.com/aws-observability/aws-sigv4-proxy-admission-controller) - Used to install the AWS SigV4 Proxy as a sidecar
-
 
 ## License
 
