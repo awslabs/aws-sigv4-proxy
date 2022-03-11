@@ -67,6 +67,7 @@ func main() {
 	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
 		sessionConfig.STSRegionalEndpoint = endpoints.RegionalSTSEndpoint
 	}
+	sessionConfig.CredentialsChainVerboseErrors = aws.Bool(true)
 
 	session, err := session.NewSession(&sessionConfig)
 	if err != nil {
