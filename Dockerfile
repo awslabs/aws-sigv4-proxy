@@ -12,7 +12,7 @@ RUN go env -w GOPROXY=direct
 
 RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/aws-sigv4-proxy
 
-FROM alpine:latest
+FROM alpine:3
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /aws-sigv4-proxy/aws-sigv4-proxy ./
 
