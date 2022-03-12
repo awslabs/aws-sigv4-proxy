@@ -67,7 +67,8 @@ func main() {
 	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
 		sessionConfig.STSRegionalEndpoint = endpoints.RegionalSTSEndpoint
 	}
-	sessionConfig.CredentialsChainVerboseErrors = aws.Bool(true)
+
+	sessionConfig.CredentialsChainVerboseErrors = aws.Bool(shouldLogSigning())
 
 	session, err := session.NewSession(&sessionConfig)
 	if err != nil {
@@ -99,7 +100,7 @@ func main() {
 	}
 
 	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
-		if *logSinging || *debug {
+		if shouldLogSigning() {
 			s.Logger = awsLoggerAdapter{}
 			s.Debug = aws.LogDebugWithSigning
 		}
@@ -126,6 +127,10 @@ func main() {
 			},
 		}),
 	)
+}
+
+func shouldLogSigning() bool {
+	return *logSinging || *debug
 }
 
 func roleSessionName() string {
