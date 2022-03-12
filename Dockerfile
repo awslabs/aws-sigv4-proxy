@@ -15,7 +15,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /go/bin/aws-sigv4-proxy
 
-FROM scratch
+FROM alpine:latest
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /go/bin/aws-sigv4-proxy /go/bin/aws-sigv4-proxy
 
