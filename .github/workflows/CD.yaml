@@ -12,12 +12,11 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.14.0'
+          go-version: "1.14.0"
 
       - name: Build
         run: |
-          go get -d -v
-          go build -v .
+          go build -v ./cmd/aws-sigv4-proxy
 
       - name: Run tests
         run: go test -v ./...
