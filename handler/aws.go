@@ -47,6 +47,14 @@ func init() {
 		host := fmt.Sprintf("%s.es.amazonaws.com", region)
 		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "es", PartitionID: "aws"}
 	}
+	// Add managed prometheus + workspace endpoints
+	for region := range endpoints.AwsPartition().Regions() {
+		host_aps := fmt.Sprintf("aps.%s.amazonaws.com", region)
+		services[host_aps] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host_aps), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
+
+		host_apsws := fmt.Sprintf("aps-workspaces.%s.amazonaws.com", region)
+		services[host_apsws] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host_apsws), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
+	}
 }
 
 func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
