@@ -49,11 +49,11 @@ func init() {
 	}
 	// Add managed prometheus + workspace endpoints
 	for region := range endpoints.AwsPartition().Regions() {
-		host_aps := fmt.Sprintf("aps.%s.amazonaws.com", region)
-		services[host_aps] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host_aps), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
+		hostAps := fmt.Sprintf("aps.%s.amazonaws.com", region)
+		services[hostAps] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", hostAps), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
 
-		host_apsws := fmt.Sprintf("aps-workspaces.%s.amazonaws.com", region)
-		services[host_apsws] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host_apsws), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
+		hostApsws := fmt.Sprintf("aps-workspaces.%s.amazonaws.com", region)
+		services[hostApsws] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", hostApsws), SigningMethod: "v4", SigningRegion: region, SigningName: "aps", PartitionID: "aws"}
 	}
 }
 
