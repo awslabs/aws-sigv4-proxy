@@ -17,19 +17,22 @@ package handler
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 )
 
 type mockHTTPClient struct {
 	Client
 	Request *http.Request
-	Fail bool
+	Fail    bool
 }
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -54,9 +57,9 @@ func (m *mockProvider) Retrieve() (credentials.Value, error) {
 
 func TestProxyClient_Do(t *testing.T) {
 	type want struct {
-		resp *http.Response
+		resp    *http.Response
 		request *http.Request
-		err  error
+		err     error
 	}
 
 	tests := []struct {
@@ -90,8 +93,7 @@ func TestProxyClient_Do(t *testing.T) {
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
@@ -103,16 +105,15 @@ func TestProxyClient_Do(t *testing.T) {
 			name: "should use SignNameOverride and RegionOverride if provided",
 			request: &http.Request{
 				Method: "GET",
-				URL:	&url.URL{},
-				Host:	"badservice.host",
-				Body:	nil,
+				URL:    &url.URL{},
+				Host:   "badservice.host",
+				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
-				Client: &mockHTTPClient{},
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:              &mockHTTPClient{},
 				SigningNameOverride: "ec2",
-				RegionOverride: "us-west-2",
+				RegionOverride:      "us-west-2",
 			},
 			want: &want{
 				resp: &http.Response{},
@@ -126,22 +127,21 @@ func TestProxyClient_Do(t *testing.T) {
 			name: "should use HostOverride if provided",
 			request: &http.Request{
 				Method: "GET",
-				URL:	&url.URL{},
-				Host:	"badservice.host",
-				Body:	nil,
+				URL:    &url.URL{},
+				Host:   "badservice.host",
+				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{
-				})),
-				Client: &mockHTTPClient{},
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:              &mockHTTPClient{},
 				SigningNameOverride: "ec2",
-				RegionOverride: "us-west-2",
-				HostOverride: "host.override",
+				RegionOverride:      "us-west-2",
+				HostOverride:        "host.override",
 			},
 			want: &want{
-				resp: &http.Response{},
+				resp:    &http.Response{},
 				request: &http.Request{Host: "host.override"},
-				err:  nil,
+				err:     nil,
 			},
 		},
 		{
@@ -178,9 +178,9 @@ func TestProxyClient_Do(t *testing.T) {
 				Client: &mockHTTPClient{},
 			},
 			want: &want{
-				resp: nil,
+				resp:    nil,
 				request: nil,
-				err:  fmt.Errorf(`mockProvider.Retrieve failed`),
+				err:     fmt.Errorf(`mockProvider.Retrieve failed`),
 			},
 		},
 		{
@@ -242,17 +242,78 @@ func TestProxyClient_Do(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should propagate non-zero content length",
+			request: &http.Request{
+				Method:        "PUT",
+				URL:           &url.URL{},
+				Host:          "not.important.host",
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("hello")),
+			},
+			proxyClient: &ProxyClient{
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				SigningNameOverride: "ec2",
+				RegionOverride:      "us-west-2",
+				Client:              &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "not.important.host",
+				},
+			},
+		},
+		{
+			name: "should propagate content length when it's zero",
+			request: &http.Request{
+				Method:        "PUT",
+				URL:           &url.URL{},
+				Host:          "not.important.host",
+				ContentLength: 0,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+			proxyClient: &ProxyClient{
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				SigningNameOverride: "ec2",
+				RegionOverride:      "us-west-2",
+				Client:              &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "not.important.host",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, err :=
-			tt.proxyClient.Do(tt.request)
+				tt.proxyClient.Do(tt.request)
 
 			assert.Equal(t, tt.want.resp, resp)
 			assert.Equal(t, tt.want.err, err)
-			assert.True(t, verifyRequest(tt.proxyClient.Client.(*mockHTTPClient).Request, tt.want.request))
-			//assert.Equal(t, tt.want.request, tt.request)
+
+			proxyRequest := tt.proxyClient.Client.(*mockHTTPClient).Request
+			assert.True(t, verifyRequest(proxyRequest, tt.want.request))
+			if proxyRequest == nil {
+				return
+			}
+
+			// Ensure content length is propagated to the proxy request
+			if proxyRequest != nil {
+				assert.Equal(t, tt.request.ContentLength, proxyRequest.ContentLength)
+			}
+
+			// If this assertion is not true, then Go http client will use TransferEncoding: chunked, which
+			// may not be supported by AWS services like S3.
+			if tt.request.ContentLength == 0 {
+				assert.Equal(t, http.NoBody, proxyRequest.Body)
+			}
 		})
 	}
 }
