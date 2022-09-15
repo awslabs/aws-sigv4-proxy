@@ -35,6 +35,23 @@ docker run --rm -ti \
   aws-sigv4-proxy -v
 ```
 
+### Configuration
+
+When running the Proxy, the following flags can be used (none are required) :
+
+| Flag (or short form)  | Type    | Description                                              | Default |
+|-----------------------|---------|----------------------------------------------------------|---------|
+| `verbose` or `v`      | Boolean | Enable additional logging, implies all the log-* options |         |
+| `log-failed-requests` | Boolean | Log 4xx and 5xx response body                            |         |
+| `log-signing-process` | Boolean | Log sigv4 signing process                                |         |
+| `port`                | String  | Port to serve http on                                    | `8080`  |
+| `strip` or `s`        | String  | Headers to strip from incoming request                   |         |
+| `role-arn`            | String  | Amazon Resource Name (ARN) of the role to assume         |         |
+| `name`                | String  | AWS Service to sign for                                  |         |
+| `host`                | String  | Host to proxy to                                         |         |
+| `region`              | String  | AWS region to sign for                                   |         |
+| `no-verify-ssl`       | Boolean | Disable peer SSL certificate validation                  |         |
+
 ## Examples
 
 S3
