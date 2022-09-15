@@ -45,6 +45,7 @@ var (
 	hostOverride           = kingpin.Flag("host", "Host to proxy to").String()
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
+	idleConnTimeout        = kingpin.Flag("transport.idle-conn-timeout", "Idle timeout to the upstream service").Default("40s").Duration()
 )
 
 type awsLoggerAdapter struct {
@@ -89,6 +90,8 @@ func main() {
 		log.Warn("Peer SSL Certificate validation is DISABLED")
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+
+	http.DefaultTransport.(*http.Transport).IdleConnTimeout = *idleConnTimeout
 
 	var credentials *credentials.Credentials
 	if *roleArn != "" {
