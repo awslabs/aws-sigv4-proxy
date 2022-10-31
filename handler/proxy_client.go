@@ -39,6 +39,7 @@ type ProxyClient struct {
 	Client              Client
 	StripRequestHeaders []string
 	SigningNameOverride string
+	SigningHostOverride string
 	HostOverride        string
 	RegionOverride      string
 	LogFailedRequest    bool
@@ -124,6 +125,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	var service *endpoints.ResolvedEndpoint
+	if p.SigningHostOverride != "" {
+	    proxyReq.Host = p.SigningHostOverride
+	}
 	if p.SigningNameOverride != "" && p.RegionOverride != "" {
 		service = &endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", proxyURL.Host), SigningMethod: "v4", SigningRegion: p.RegionOverride, SigningName: p.SigningNameOverride}
 	} else {
