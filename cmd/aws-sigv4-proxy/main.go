@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"fmt"
 
 	"aws-sigv4-proxy/handler"
 
@@ -47,6 +48,8 @@ var (
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
 	idleConnTimeout        = kingpin.Flag("transport.idle-conn-timeout", "Idle timeout to the upstream service").Default("40s").Duration()
+	unsignedPayload        = kingpin.Flag("unsigned-payload", "Prevent signing of the payload").Default("false").Bool()
+	
 )
 
 type awsLoggerAdapter struct {
@@ -61,9 +64,6 @@ func main() {
 	kingpin.Parse()
 
 	log.SetLevel(log.InfoLevel)
-	if *debug {
-		log.SetLevel(log.DebugLevel)
-	}
 
 	sessionConfig := aws.Config{}
 	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
@@ -102,12 +102,14 @@ func main() {
 	} else {
 		credentials = session.Config.Credentials
 	}
-
+	
+	fmt.Printf("%t", useUnsignedPayload())
 	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
 		if shouldLogSigning() {
 			s.Logger = awsLoggerAdapter{}
 			s.Debug = aws.LogDebugWithSigning
 		}
+		s.UnsignedPayload = useUnsignedPayload()
 	})
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -129,6 +131,7 @@ func main() {
 				HostOverride:        *hostOverride,
 				RegionOverride:      *regionOverride,
 				LogFailedRequest:    *logFailedResponse,
+				UnsignedPayload:     *unsignedPayload,
 			},
 		}),
 	)
@@ -136,6 +139,10 @@ func main() {
 
 func shouldLogSigning() bool {
 	return *logSinging || *debug
+}
+
+func useUnsignedPayload() bool {
+     return *unsignedPayload || false
 }
 
 func roleSessionName() string {
