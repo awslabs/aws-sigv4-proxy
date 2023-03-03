@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"fmt"
 
 	"aws-sigv4-proxy/handler"
 
@@ -103,7 +102,6 @@ func main() {
 		credentials = session.Config.Credentials
 	}
 	
-	fmt.Printf("%t", useUnsignedPayload())
 	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
 		if shouldLogSigning() {
 			s.Logger = awsLoggerAdapter{}
