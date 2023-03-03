@@ -110,7 +110,7 @@ func main() {
 			s.Logger = awsLoggerAdapter{}
 			s.Debug = aws.LogDebugWithSigning
 		}
-		s.UnsignedPayload = useUnsignedPayload()
+		s.UnsignedPayload = *unsignedPayload
 	})
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -140,10 +140,6 @@ func main() {
 
 func shouldLogSigning() bool {
 	return *logSinging || *debug
-}
-
-func useUnsignedPayload() bool {
-     return *unsignedPayload || false
 }
 
 func roleSessionName() string {
