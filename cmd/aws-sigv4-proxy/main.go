@@ -63,6 +63,9 @@ func main() {
 	kingpin.Parse()
 
 	log.SetLevel(log.InfoLevel)
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	sessionConfig := aws.Config{}
 	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
