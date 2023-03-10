@@ -132,7 +132,6 @@ func main() {
 				HostOverride:        *hostOverride,
 				RegionOverride:      *regionOverride,
 				LogFailedRequest:    *logFailedResponse,
-				UnsignedPayload:     *unsignedPayload,
 			},
 		}),
 	)

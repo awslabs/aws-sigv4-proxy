@@ -43,7 +43,6 @@ type ProxyClient struct {
 	HostOverride        string
 	RegionOverride      string
 	LogFailedRequest    bool
-	UnsignedPayload     bool
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
