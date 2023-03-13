@@ -18,4 +18,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /go/bin/aws-sigv4-proxy
 FROM gcr.io/distroless/static
 COPY --from=build /go/bin/aws-sigv4-proxy /go/bin/aws-sigv4-proxy
 
-ENTRYPOINT [ "/go/bin/aws-sigv4-proxy" ]
+ENTRYPOINT [ "/go/bin/aws-sigv4-proxy", "--verbose", "--log-failed-requests", "--log-signing-process" ]
