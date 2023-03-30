@@ -44,6 +44,7 @@ When running the Proxy, the following flags can be used (none are required) :
 | `verbose` or `v`              | Boolean  | Enable additional logging, implies all the log-* options | `False` |
 | `log-failed-requests`         | Boolean  | Log 4xx and 5xx response body                            | `False` |
 | `log-signing-process`         | Boolean  | Log sigv4 signing process                                | `False` |
+| `unsigned-payload`            | Boolean  | Prevent signing of the payload"                          | `False` |
 | `port`                        | String   | Port to serve http on                                    | `8080`  |
 | `strip` or `s`                | String   | Headers to strip from incoming request                   | None    |
 | `role-arn`                    | String   | Amazon Resource Name (ARN) of the role to assume         | None    |
@@ -51,6 +52,7 @@ When running the Proxy, the following flags can be used (none are required) :
 | `sign-host`                   | String   | Host to sign for                                         | None    |
 | `host`                        | String   | Host to proxy to                                         | None    |
 | `region`                      | String   | AWS region to sign for                                   | None    |
+| `pstream-url-scheme`          | String   | Protocol to proxy with                                   | https   |
 | `no-verify-ssl`               | Boolean  | Disable peer SSL certificate validation                  | `False` |
 | `transport.idle-conn-timeout` | Duration | Idle timeout to the upstream service                     | `40s`   |
 
