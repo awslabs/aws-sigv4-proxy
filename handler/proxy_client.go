@@ -43,6 +43,7 @@ type ProxyClient struct {
 	HostOverride        string
 	RegionOverride      string
 	LogFailedRequest    bool
+	SchemeOverride      string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -59,7 +60,7 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 
 	// S3 service should not have any escaping applied.
 	// https://github.com/aws/aws-sdk-go/blob/main/aws/signer/v4/v4.go#L467-L470
-        if (service.SigningName == "s3") {
+	if service.SigningName == "s3" {
 		p.Signer.DisableURIPathEscaping = true
 
 		// Enable URI escaping for subsequent calls.
@@ -107,6 +108,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		proxyURL.Host = req.Host
 	}
 	proxyURL.Scheme = "https"
+	if p.SchemeOverride != "" {
+		proxyURL.Scheme = p.SchemeOverride
+	}
 
 	if log.GetLevel() == log.DebugLevel {
 		initialReqDump, err := httputil.DumpRequest(req, true)
@@ -126,10 +130,10 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 
 	var service *endpoints.ResolvedEndpoint
 	if p.SigningHostOverride != "" {
-	    proxyReq.Host = p.SigningHostOverride
+		proxyReq.Host = p.SigningHostOverride
 	}
 	if p.SigningNameOverride != "" && p.RegionOverride != "" {
-		service = &endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", proxyURL.Host), SigningMethod: "v4", SigningRegion: p.RegionOverride, SigningName: p.SigningNameOverride}
+		service = &endpoints.ResolvedEndpoint{URL: fmt.Sprintf("%s://%s", proxyURL.Scheme, proxyURL.Host), SigningMethod: "v4", SigningRegion: p.RegionOverride, SigningName: p.SigningNameOverride}
 	} else {
 		service = determineAWSServiceFromHost(req.Host)
 	}

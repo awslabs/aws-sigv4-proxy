@@ -47,8 +47,8 @@ var (
 	regionOverride         = kingpin.Flag("region", "AWS region to sign for").String()
 	disableSSLVerification = kingpin.Flag("no-verify-ssl", "Disable peer SSL certificate validation").Bool()
 	idleConnTimeout        = kingpin.Flag("transport.idle-conn-timeout", "Idle timeout to the upstream service").Default("40s").Duration()
+	schemeOverride         = kingpin.Flag("upstream-url-scheme", "Protocol to proxy with").String()
 	unsignedPayload        = kingpin.Flag("unsigned-payload", "Prevent signing of the payload").Default("false").Bool()
-	
 )
 
 type awsLoggerAdapter struct {
@@ -132,6 +132,7 @@ func main() {
 				HostOverride:        *hostOverride,
 				RegionOverride:      *regionOverride,
 				LogFailedRequest:    *logFailedResponse,
+				SchemeOverride:      *schemeOverride,
 			},
 		}),
 	)
