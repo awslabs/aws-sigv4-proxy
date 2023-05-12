@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"time"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
@@ -99,8 +100,38 @@ func copyHeaderWithoutOverwrite(dst, src http.Header) {
 	}
 }
 
+func checkHealthRequest(req *http.Request) (*http.Response) {
+	healthCheckPath, hasHealthCheck := os.LookupEnv("healthcheck_path")
+	if hasHealthCheck && req.URL.Path == healthCheckPath {
+		body := "Responding to healthcheck"
+		log.Debug(body)
+		resp := &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Body:          ioutil.NopCloser(bytes.NewBufferString(body)),
+			ContentLength: int64(len(body)),
+			Request:       req,
+			Header:        make(http.Header, 0),
+		}
+		buff := bytes.NewBuffer(nil)
+		resp.Write(buff)
+		return resp
+	}
+	return nil
+}
+
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
+	
+	healthResp := checkHealthRequest(req)
+	if healthResp != nil {
+		return healthResp, nil
+	}
+
 	proxyURL := *req.URL
+
 	if p.HostOverride != "" {
 		proxyURL.Host = p.HostOverride
 
