@@ -99,6 +99,25 @@ func copyHeaderWithoutOverwrite(dst, src http.Header) {
 	}
 }
 
+// RFC2616, Section 4.4: If a Transfer-Encoding header field (Section 14.41) is
+// present and has any value other than "identity", then the transfer-length is
+// defined by use of the "chunked" transfer-coding (Section 3.6). [...] If a
+// message is received with both a Transfer-Encoding header field and a
+// Content-Length header field, the latter MUST be ignored.
+//
+// RFC2616, Section 3.6: Whenever a transfer-coding is applied to a
+// message-body, the set of transfer-codings MUST include "chunked", unless the
+// message is terminated by closing the connection.
+func chunked(transferEncoding []string) bool {
+	for _, v := range transferEncoding {
+		// This interprets identity-only headers as no header.
+		if v != "identity" {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	proxyURL := *req.URL
 	if p.HostOverride != "" {
@@ -124,7 +143,11 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if req.ContentLength >= 0 {
+
+	var reqChunked = chunked(req.TransferEncoding);
+
+	// Ignore ContentLength if "chunked" transfer-coding is used.
+	if !reqChunked && req.ContentLength >= 0 {
 		proxyReq.ContentLength = req.ContentLength
 	}
 
@@ -145,12 +168,20 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	// When ContentLength is 0 we also need to set the body to http.NoBody to avoid Go http client
-	// to magically set Transfer-Encoding: chunked. Service like S3 does not support chunk encoding.
-	// We need to manipulate the Body value after signv4 signing because the signing process wraps
-	// the original body into another struct, which will result in Transfer-Encoding: chunked being set.
-	if proxyReq.ContentLength == 0 {
-		proxyReq.Body = http.NoBody
+	// go Documentation net/http, func (*Request) Write: If Body is present,
+	// Content-Length is <= 0 and TransferEncoding hasn't been set to
+	// "identity", Write adds "Transfer-Encoding: chunked" to the header.
+	// Body is closed after it is sent.
+	//
+	// Service like S3 does not support chunk encoding. We need to manipulate
+	// the Body value after signv4 signing because the signing process wraps the
+	// original body into another struct, which will result in
+	// Transfer-Encoding: chunked being set.
+	if !reqChunked {
+		// Set to identity to prevent write() from setting it to chunked.
+		proxyReq.TransferEncoding = []string{"identity"}
+	} else {
+		proxyReq.TransferEncoding = req.TransferEncoding
 	}
 
 	// Remove any headers specified

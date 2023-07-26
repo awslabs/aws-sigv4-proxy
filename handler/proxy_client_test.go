@@ -288,6 +288,83 @@ func TestProxyClient_Do(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should not drop body for chunked requests",
+			request: &http.Request{
+				Method:           "POST",
+				URL:              &url.URL{},
+				Host:             "not.important.host",
+				TransferEncoding: []string{"chunked"},
+				Body:             io.NopCloser(strings.NewReader("5\r\nhello\r\n")),
+			},
+			proxyClient: &ProxyClient{
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				SigningNameOverride: "ec2",
+				RegionOverride:      "us-west-2",
+				Client:              &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "not.important.host",
+					// The test callback func will check that new body is at
+					// least as large as the original body.
+				},
+			},
+		},
+		{
+			name: "should ignore content length for chunked requests",
+			request: &http.Request{
+				Method:           "POST",
+				URL:              &url.URL{},
+				Host:             "not.important.host",
+				TransferEncoding: []string{"chunked"},
+				ContentLength:    10000, // invalid, but should be ignored
+				Body:             io.NopCloser(strings.NewReader("5\r\nhello\r\n0\r\n\r\n")),
+			},
+			proxyClient: &ProxyClient{
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				SigningNameOverride: "ec2",
+				RegionOverride:      "us-west-2",
+				Client:              &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "not.important.host",
+					// The test callback func will check that new body is at
+					// least as large as the original body.
+				},
+			},
+		},
+		{
+			name: "should propagate nested unknown transfer encodings",
+			request: &http.Request{
+				Method:           "POST",
+				URL:              &url.URL{},
+				Host:             "not.important.host",
+				TransferEncoding: []string{"chunked", "unregisteredBogus"},
+				ContentLength:    0,
+				Body:             io.NopCloser(strings.NewReader("5\r\nHELLO\r\n0\r\n\r\n")),
+			},
+			proxyClient: &ProxyClient{
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				SigningNameOverride: "ec2",
+				RegionOverride:      "us-west-2",
+				Client:              &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "not.important.host",
+					// The test callback func will check that new body is at
+					// least as large as the original body.
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -304,15 +381,32 @@ func TestProxyClient_Do(t *testing.T) {
 				return
 			}
 
-			// Ensure content length is propagated to the proxy request
-			if proxyRequest != nil {
+			// Ensure encoding is propagated to the proxy request.
+			assert.Equal(t, chunked(tt.request.TransferEncoding), chunked(proxyRequest.TransferEncoding));
+			if chunked(tt.request.TransferEncoding) {
+				assert.Equal(t, tt.request.TransferEncoding, proxyRequest.TransferEncoding);
+			} else {
+				// Ensure content length is propagated to the proxy request.
 				assert.Equal(t, tt.request.ContentLength, proxyRequest.ContentLength)
+
+				// If this assertion is not true, then Go http client will use
+				// TransferEncoding: chunked, which may not be supported by AWS
+				// services like S3.
+				if tt.request.ContentLength == 0 {
+					assert.Equal(t, []string{"identity"}, proxyRequest.TransferEncoding)
+				}
 			}
 
-			// If this assertion is not true, then Go http client will use TransferEncoding: chunked, which
-			// may not be supported by AWS services like S3.
-			if tt.request.ContentLength == 0 {
-				assert.Equal(t, http.NoBody, proxyRequest.Body)
+			// Proxied request bodies should be at least as large as the original.
+			if tt.request.Body != nil {
+				ttBody, ttErr := io.ReadAll(tt.request.Body)
+				if proxyRequest.Body != nil {
+					proxyBody, proxyErr := io.ReadAll(proxyRequest.Body)
+					assert.Equal(t, ttErr, proxyErr)
+					assert.True(t, len(proxyBody) >= len(ttBody))
+				} else {
+					assert.Equal(t, 0, len(ttBody))
+				}
 			}
 		})
 	}
