@@ -40,6 +40,7 @@ var (
 	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
 	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
+	duplicateHeaders       = kingpin.Flag("duplicate-headers", "Duplicate headers to an X-Original- prefix name").Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
 	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
 	signingHostOverride    = kingpin.Flag("sign-host", "Host to sign for").String()
@@ -104,7 +105,7 @@ func main() {
 	} else {
 		credentials = session.Config.Credentials
 	}
-	
+
 	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
 		if shouldLogSigning() {
 			s.Logger = awsLoggerAdapter{}
@@ -119,20 +120,22 @@ func main() {
 	}
 
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
+	log.WithFields(log.Fields{"DuplicateHeaders": *duplicateHeaders}).Infof("Duplicating headers %s", *duplicateHeaders)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
 	log.Fatal(
 		http.ListenAndServe(*port, &handler.Handler{
 			ProxyClient: &handler.ProxyClient{
-				Signer:              signer,
-				Client:              client,
-				StripRequestHeaders: *strip,
-				SigningNameOverride: *signingNameOverride,
-				SigningHostOverride: *signingHostOverride,
-				HostOverride:        *hostOverride,
-				RegionOverride:      *regionOverride,
-				LogFailedRequest:    *logFailedResponse,
-				SchemeOverride:      *schemeOverride,
+				Signer:                  signer,
+				Client:                  client,
+				StripRequestHeaders:     *strip,
+				DuplicateRequestHeaders: *duplicateHeaders,
+				SigningNameOverride:     *signingNameOverride,
+				SigningHostOverride:     *signingHostOverride,
+				HostOverride:            *hostOverride,
+				RegionOverride:          *regionOverride,
+				LogFailedRequest:        *logFailedResponse,
+				SchemeOverride:          *schemeOverride,
 			},
 		}),
 	)
