@@ -49,6 +49,9 @@ var (
 	idleConnTimeout        = kingpin.Flag("transport.idle-conn-timeout", "Idle timeout to the upstream service").Default("40s").Duration()
 	schemeOverride         = kingpin.Flag("upstream-url-scheme", "Protocol to proxy with").String()
 	unsignedPayload        = kingpin.Flag("unsigned-payload", "Prevent signing of the payload").Default("false").Bool()
+	enableTLS              = kingpin.Flag("enable-tls", "Enable TLS").Default("false").Bool()
+	tlsCertFile            = kingpin.Flag("tls-cert-file", "TLS certificate file path").String()
+	tlsKeyFile             = kingpin.Flag("tls-key-file", "TLS key file path").String()
 )
 
 type awsLoggerAdapter struct {
@@ -104,7 +107,7 @@ func main() {
 	} else {
 		credentials = session.Config.Credentials
 	}
-	
+
 	signer := v4.NewSigner(credentials, func(s *v4.Signer) {
 		if shouldLogSigning() {
 			s.Logger = awsLoggerAdapter{}
@@ -121,21 +124,32 @@ func main() {
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
-	log.Fatal(
-		http.ListenAndServe(*port, &handler.Handler{
-			ProxyClient: &handler.ProxyClient{
-				Signer:              signer,
-				Client:              client,
-				StripRequestHeaders: *strip,
-				SigningNameOverride: *signingNameOverride,
-				SigningHostOverride: *signingHostOverride,
-				HostOverride:        *hostOverride,
-				RegionOverride:      *regionOverride,
-				LogFailedRequest:    *logFailedResponse,
-				SchemeOverride:      *schemeOverride,
-			},
-		}),
-	)
+	handler := &handler.Handler{
+		ProxyClient: &handler.ProxyClient{
+			Signer:              signer,
+			Client:              client,
+			StripRequestHeaders: *strip,
+			SigningNameOverride: *signingNameOverride,
+			SigningHostOverride: *signingHostOverride,
+			HostOverride:        *hostOverride,
+			RegionOverride:      *regionOverride,
+			LogFailedRequest:    *logFailedResponse,
+			SchemeOverride:      *schemeOverride,
+		},
+	}
+
+	if *enableTLS {
+		if *tlsCertFile == "" || *tlsKeyFile == "" {
+			log.Fatal("TLS enabled but tls-cert-file or tls-key-file flag not specified")
+		}
+		log.Fatal(
+			http.ListenAndServeTLS(*port, *tlsCertFile, *tlsKeyFile, handler),
+		)
+	} else {
+		log.Fatal(
+			http.ListenAndServe(*port, handler),
+		)
+	}
 }
 
 func shouldLogSigning() bool {
