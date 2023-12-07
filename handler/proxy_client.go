@@ -197,7 +197,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		log.WithField("DuplicateHeader", string(header)).Debug("Duplicate Header to X-Original-* Prefix:")
 		headerValue := req.Header.Get(header)
 		newHeaderName := fmt.Sprintf("X-Original-%s", header)
-		req.Header.Set(newHeaderName, headerValue)
+		proxyReq.Header.Set(newHeaderName, headerValue)
 	}
 
 	// Add origin headers after request is signed (no overwrite)
