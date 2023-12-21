@@ -194,8 +194,13 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	// Duplicate the header value for any headers specified into a new header
 	// with an "X-Original-" prefix.
 	for _, header := range p.DuplicateRequestHeaders {
-		log.WithField("DuplicateHeader", string(header)).Debug("Duplicate Header to X-Original-* Prefix:")
 		headerValue := req.Header.Get(header)
+		if headerValue == "" {
+			log.WithField("DuplicateHeader", string(header)).Debug("Header empty, will not duplicate:")
+			continue
+		}
+
+		log.WithField("DuplicateHeader", string(header)).Debug("Duplicate Header to X-Original-* Prefix:")
 		newHeaderName := fmt.Sprintf("X-Original-%s", header)
 		proxyReq.Header.Set(newHeaderName, headerValue)
 	}
