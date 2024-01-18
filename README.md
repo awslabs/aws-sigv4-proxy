@@ -52,7 +52,7 @@ When running the Proxy, the following flags can be used (none are required) :
 | `sign-host`                   | String   | Host to sign for                                         | None    |
 | `host`                        | String   | Host to proxy to                                         | None    |
 | `region`                      | String   | AWS region to sign for                                   | None    |
-| `pstream-url-scheme`          | String   | Protocol to proxy with                                   | https   |
+| `upstream-url-scheme`         | String   | Protocol to proxy with                                   | https   |
 | `no-verify-ssl`               | Boolean  | Disable peer SSL certificate validation                  | `False` |
 | `transport.idle-conn-timeout` | Duration | Idle timeout to the upstream service                     | `40s`   |
 
