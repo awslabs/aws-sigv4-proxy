@@ -1,2 +1,5 @@
 .vscode
 .idea/
+
+# binary
+aws-sigv4-proxy

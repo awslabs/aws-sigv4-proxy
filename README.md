@@ -47,6 +47,7 @@ When running the Proxy, the following flags can be used (none are required) :
 | `unsigned-payload`            | Boolean  | Prevent signing of the payload"                          | `False` |
 | `port`                        | String   | Port to serve http on                                    | `8080`  |
 | `strip` or `s`                | String   | Headers to strip from incoming request                   | None    |
+| `duplicate-headers`           | String   | Duplicate headers to an X-Original- prefix name          | None    |
 | `role-arn`                    | String   | Amazon Resource Name (ARN) of the role to assume         | None    |
 | `name`                        | String   | AWS Service to sign for                                  | None    |
 | `sign-host`                   | String   | Host to sign for                                         | None    |
@@ -89,6 +90,17 @@ docker run --rm -ti \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v -s Authorization
+```
+
+Running the service and preserving the original Authorization header as X-Original-Authorization (useful because Authorization header will be overwritten.)
+
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v --duplicate-headers Authorization
 ```
 
 Running the service with Assume Role to use temporary credentials

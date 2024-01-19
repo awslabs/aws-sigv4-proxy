@@ -35,15 +35,16 @@ type Client interface {
 
 // ProxyClient implements the Client interface
 type ProxyClient struct {
-	Signer              *v4.Signer
-	Client              Client
-	StripRequestHeaders []string
-	SigningNameOverride string
-	SigningHostOverride string
-	HostOverride        string
-	RegionOverride      string
-	LogFailedRequest    bool
-	SchemeOverride      string
+	Signer                  *v4.Signer
+	Client                  Client
+	StripRequestHeaders     []string
+	DuplicateRequestHeaders []string
+	SigningNameOverride     string
+	SigningHostOverride     string
+	HostOverride            string
+	RegionOverride          string
+	LogFailedRequest        bool
+	SchemeOverride          string
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -144,7 +145,7 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	var reqChunked = chunked(req.TransferEncoding);
+	var reqChunked = chunked(req.TransferEncoding)
 
 	// Ignore ContentLength if "chunked" transfer-coding is used.
 	if !reqChunked && req.ContentLength >= 0 {
@@ -188,6 +189,20 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 	for _, header := range p.StripRequestHeaders {
 		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
 		req.Header.Del(header)
+	}
+
+	// Duplicate the header value for any headers specified into a new header
+	// with an "X-Original-" prefix.
+	for _, header := range p.DuplicateRequestHeaders {
+		headerValue := req.Header.Get(header)
+		if headerValue == "" {
+			log.WithField("DuplicateHeader", string(header)).Debug("Header empty, will not duplicate:")
+			continue
+		}
+
+		log.WithField("DuplicateHeader", string(header)).Debug("Duplicate Header to X-Original-* Prefix:")
+		newHeaderName := fmt.Sprintf("X-Original-%s", header)
+		proxyReq.Header.Set(newHeaderName, headerValue)
 	}
 
 	// Add origin headers after request is signed (no overwrite)

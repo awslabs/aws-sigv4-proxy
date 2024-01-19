@@ -365,6 +365,60 @@ func TestProxyClient_Do(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should duplicate specified headers with prefix",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Header: http.Header{
+					"Authorization": []string{"customValue"},
+					"User-Agent":    []string{"customAgent"},
+				},
+				Body: nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:                  &mockHTTPClient{},
+				DuplicateRequestHeaders: []string{"Authorization"},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					Header: http.Header{
+						"X-Original-Authorization": []string{"customValue"},
+						"User-Agent":               []string{"customAgent"},
+					},
+				},
+			},
+		},
+		{
+			name: "should not duplicate empty headers with prefix",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:                  &mockHTTPClient{},
+				DuplicateRequestHeaders: []string{"NonExistentHeader"},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					Header: http.Header{
+						// Ensure headers are not present
+						"X-Original-NonExistentHeader": nil,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -376,15 +430,21 @@ func TestProxyClient_Do(t *testing.T) {
 			assert.Equal(t, tt.want.err, err)
 
 			proxyRequest := tt.proxyClient.Client.(*mockHTTPClient).Request
+
 			assert.True(t, verifyRequest(proxyRequest, tt.want.request))
 			if proxyRequest == nil {
 				return
 			}
 
+			// Ensure specific headers are propagated (or not in certain cases) to the proxy request
+			for kk, vv := range tt.want.request.Header {
+				assert.Equal(t, vv, proxyRequest.Header[kk])
+			}
+
 			// Ensure encoding is propagated to the proxy request.
-			assert.Equal(t, chunked(tt.request.TransferEncoding), chunked(proxyRequest.TransferEncoding));
+			assert.Equal(t, chunked(tt.request.TransferEncoding), chunked(proxyRequest.TransferEncoding))
 			if chunked(tt.request.TransferEncoding) {
-				assert.Equal(t, tt.request.TransferEncoding, proxyRequest.TransferEncoding);
+				assert.Equal(t, tt.request.TransferEncoding, proxyRequest.TransferEncoding)
 			} else {
 				// Ensure content length is propagated to the proxy request.
 				assert.Equal(t, tt.request.ContentLength, proxyRequest.ContentLength)
@@ -408,6 +468,7 @@ func TestProxyClient_Do(t *testing.T) {
 					assert.Equal(t, 0, len(ttBody))
 				}
 			}
+
 		})
 	}
 }
