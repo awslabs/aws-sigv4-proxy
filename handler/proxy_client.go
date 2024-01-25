@@ -18,6 +18,7 @@ package handler
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -140,7 +141,12 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		log.WithField("request", string(initialReqDump)).Debug("Initial request dump:")
 	}
 
-	proxyReq, err := http.NewRequest(req.Method, proxyURL.String(), req.Body)
+	proxyReqBody, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	proxyReq, err := http.NewRequest(req.Method, proxyURL.String(), bytes.NewReader(proxyReqBody))
 	if err != nil {
 		return nil, err
 	}
