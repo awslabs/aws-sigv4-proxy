@@ -141,6 +141,10 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		log.WithField("request", string(initialReqDump)).Debug("Initial request dump:")
 	}
 
+	// Save the request body into memory so that it's rewindable during retry.
+	// See https://github.com/awslabs/aws-sigv4-proxy/issues/185
+	// This may increase memory demand, but the demand should be ok for most cases. If there
+	// are cases proven to be very problematic, we can consider adding a flag to disable this.
 	proxyReqBody, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
