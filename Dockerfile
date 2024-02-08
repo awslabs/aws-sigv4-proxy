@@ -10,6 +10,7 @@ COPY  . .
 
 RUN go env -w GOPROXY=direct
 
+RUN CGO_ENABLED=0 GOOS=linux go mod tidy -e
 RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/aws-sigv4-proxy
 
 FROM alpine:3
