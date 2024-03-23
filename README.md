@@ -160,8 +160,6 @@ OpenSearch
                  --host host.docker.internal:4443 \
                  --sign-host eu-west-1.es.amazonaws.com
     ```
-  
-  Access dashboard via http://localhost:8080/_dashboards/app/home#/tutorial_directory
 
 ## Reference
 
