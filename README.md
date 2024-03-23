@@ -160,6 +160,9 @@ OpenSearch
                  --host host.docker.internal:4443 \
                  --sign-host eu-west-1.es.amazonaws.com
     ```
+## Healthcheck
+
+To use healthcheck on ECS or EKS, simply make a call to `localhost:8080/health` which will return the HTTP Status OK.
 
 ## Reference
 
