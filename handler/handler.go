@@ -35,7 +35,10 @@ func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.ProxyClient.Do(r)
-	if err != nil {
+	if r.URL.Path == "/health" {
+		w.WriteHeader(http.StatusOK)
+		return
+	} else if err != nil {
 	    errorMsg := "unable to proxy request"
 		log.WithError(err).Error(errorMsg)
 		h.write(w, http.StatusBadGateway, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
