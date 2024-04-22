@@ -395,17 +395,18 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 		},
 		{
-			name: "should not duplicate empty headers with prefix",
+			name: "should strip request headers",
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
 				Host:   "execute-api.us-west-2.amazonaws.com",
+				Header: http.Header{"StripMePlease": []string{"prettyplease"}},
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
-				Client:                  &mockHTTPClient{},
-				DuplicateRequestHeaders: []string{"NonExistentHeader"},
+				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:              &mockHTTPClient{},
+				StripRequestHeaders: []string{"StripMePlease"},
 			},
 			want: &want{
 				resp: &http.Response{},
@@ -414,7 +415,7 @@ func TestProxyClient_Do(t *testing.T) {
 					Host: "execute-api.us-west-2.amazonaws.com",
 					Header: http.Header{
 						// Ensure headers are not present
-						"X-Original-NonExistentHeader": nil,
+						"StripMePlease": nil,
 					},
 				},
 			},
