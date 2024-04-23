@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -39,6 +40,7 @@ type ProxyClient struct {
 	Signer                  *v4.Signer
 	Client                  Client
 	StripRequestHeaders     []string
+	StripRequestQueryParams []string
 	DuplicateRequestHeaders []string
 	SigningNameOverride     string
 	SigningHostOverride     string
@@ -141,6 +143,28 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		proxyURL.Scheme = p.SchemeOverride
 	}
 
+	// Remove any query params specified
+	if len(p.StripRequestQueryParams) > 0 {
+		query := req.URL.Query()
+		for _, stripParam := range p.StripRequestQueryParams {
+			// handle wildcard strip values
+			if strings.HasSuffix(stripParam, "*") {
+				prefix := strings.ToLower(stripParam[:len(stripParam)-1])
+				for param := range query {
+					p := strings.ToLower(param)
+					if strings.HasPrefix(p, prefix) {
+						log.WithField("StripParam", string(param)).Debug("Stripping Param:")
+						query.Del(param)
+					}
+				}
+			} else {
+				log.WithField("StripParam", string(stripParam)).Debug("Stripping Param:")
+				query.Del(stripParam)
+			}
+		}
+		proxyURL.RawQuery = query.Encode()
+	}
+
 	if log.GetLevel() == log.DebugLevel {
 		initialReqDump, err := httputil.DumpRequest(req, true)
 		if err != nil {
@@ -205,8 +229,20 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 
 	// Remove any headers specified
 	for _, header := range p.StripRequestHeaders {
-		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
-		req.Header.Del(header)
+		// handle wildcard strip values
+		if strings.HasSuffix(header, "*") {
+			prefix := strings.ToLower(header[:len(header)-1])
+			for rHeader := range req.Header {
+				h := strings.ToLower(rHeader)
+				if strings.HasPrefix(h, prefix) {
+					log.WithField("StripHeader", string(h)).Debug("Stripping Header:")
+					req.Header.Del(h)
+				}
+			}
+		} else {
+			log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
+			req.Header.Del(header)
+		}
 	}
 
 	// Duplicate the header value for any headers specified into a new header
