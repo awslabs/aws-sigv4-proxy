@@ -395,18 +395,17 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 		},
 		{
-			name: "should strip request headers",
+			name: "should not duplicate empty headers with prefix",
 			request: &http.Request{
 				Method: "GET",
 				URL:    &url.URL{},
 				Host:   "execute-api.us-west-2.amazonaws.com",
-				Header: http.Header{"StripMePlease": []string{"prettyplease"}},
 				Body:   nil,
 			},
 			proxyClient: &ProxyClient{
-				Signer:              v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
-				Client:              &mockHTTPClient{},
-				StripRequestHeaders: []string{"StripMePlease"},
+				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:                  &mockHTTPClient{},
+				DuplicateRequestHeaders: []string{"NonExistentHeader"},
 			},
 			want: &want{
 				resp: &http.Response{},
@@ -415,8 +414,67 @@ func TestProxyClient_Do(t *testing.T) {
 					Host: "execute-api.us-west-2.amazonaws.com",
 					Header: http.Header{
 						// Ensure headers are not present
-						"StripMePlease": nil,
+						"X-Original-NonExistentHeader": nil,
 					},
+				},
+			},
+		},
+		{
+			name: "should strip request headers",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Header: http.Header{
+					"X-Goodheader":  []string{"x"},
+					"X-Badheader":   []string{"x"},
+					"X-Badprefix-1": []string{"x"},
+					"X-Badprefix-2": []string{"x"},
+				},
+				Body: nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client: &mockHTTPClient{},
+				StripRequestHeaders: []string{
+					"X-Badheader",
+					"X-Badprefix-*",
+				},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					Header: http.Header{
+						"X-Goodheader": []string{"x"},
+						// Ensure these headers are not present
+						"X-Badheader":   nil,
+						"X-Badprefix-1": nil,
+						"X-Badprefix-2": nil,
+					},
+				},
+			},
+		},
+		{
+			name: "should strip request query params",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{RawQuery: "badparam=x&badprefix1=x&goodparam=x"},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:                  &mockHTTPClient{},
+				StripRequestQueryParams: []string{"badparam", "badprefix*"},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					URL:  &url.URL{RawQuery: "goodparam=x"},
 				},
 			},
 		},
@@ -439,7 +497,15 @@ func TestProxyClient_Do(t *testing.T) {
 
 			// Ensure specific headers are propagated (or not in certain cases) to the proxy request
 			for kk, vv := range tt.want.request.Header {
+				if vv == nil && proxyRequest.Header.Get(kk) != "" {
+					t.Logf("got unexpected header key %q in proxy request", kk)
+					t.Fail()
+				}
 				assert.Equal(t, vv, proxyRequest.Header[kk])
+			}
+			// Ensure query parameters match
+			if tt.want.request.URL != nil {
+				assert.Equal(t, tt.want.request.URL.Query(), proxyRequest.URL.Query())
 			}
 
 			// Ensure encoding is propagated to the proxy request.
