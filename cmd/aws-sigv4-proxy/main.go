@@ -39,8 +39,9 @@ var (
 	logFailedResponse      = kingpin.Flag("log-failed-requests", "Log 4xx and 5xx response body").Bool()
 	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
 	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
-	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request. Use wildcard suffix * to match header key prefix").Short('s').Strings()
-	stripParam             = kingpin.Flag("stripParam", "Query parameters to strip from incoming request. Use wildcard suffix '*' to match parameter prefix").Strings()
+	stripDeprecated        = kingpin.Flag("strip", "Headers to strip from incoming request").Hidden().Short('s').Strings()
+	stripHeaders           = kingpin.Flag("strip-header", "Headers to strip from incoming request. Use wildcard suffix '*' to match prefix e.g. x-aws-*").Strings()
+	stripParams            = kingpin.Flag("strip-param", "Query parameters to strip from incoming request. Use wildcard suffix '*' to match prefix e.g. x-aws-*").Strings()
 	duplicateHeaders       = kingpin.Flag("duplicate-headers", "Duplicate headers to an X-Original- prefix name").Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
 	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
@@ -120,9 +121,22 @@ func main() {
 		},
 	}
 
-	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
-	log.WithFields(log.Fields{"StripParams": *stripParam}).Infof("Stripping query parameters %s", *stripParam)
-	log.WithFields(log.Fields{"DuplicateHeaders": *duplicateHeaders}).Infof("Duplicating headers %s", *duplicateHeaders)
+	if *stripDeprecated != nil {
+		log.Warn("Using deprecated flag 'strip' - use 'strip-header' instead")
+		if *stripHeaders != nil {
+			log.Fatal("Use either 'strip' or 'strip-header'")
+		}
+		stripHeaders = stripDeprecated
+	}
+	if *stripHeaders != nil {
+		log.WithFields(log.Fields{"StripHeaders": *stripHeaders}).Infof("Stripping headers %s", *stripHeaders)
+	}
+	if *stripParams != nil {
+		log.WithFields(log.Fields{"StripParams": *stripParams}).Infof("Stripping query parameters %s", *stripParams)
+	}
+	if *duplicateHeaders != nil {
+		log.WithFields(log.Fields{"DuplicateHeaders": *duplicateHeaders}).Infof("Duplicating headers %s", *duplicateHeaders)
+	}
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
 
 	log.Fatal(
@@ -130,8 +144,8 @@ func main() {
 			ProxyClient: &handler.ProxyClient{
 				Signer:                  signer,
 				Client:                  client,
-				StripRequestHeaders:     *strip,
-				StripRequestQueryParams: *stripParam,
+				StripRequestHeaders:     *stripHeaders,
+				StripRequestQueryParams: *stripParams,
 				DuplicateRequestHeaders: *duplicateHeaders,
 				SigningNameOverride:     *signingNameOverride,
 				SigningHostOverride:     *signingHostOverride,
