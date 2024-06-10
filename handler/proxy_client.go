@@ -39,6 +39,7 @@ type ProxyClient struct {
 	Signer                  *v4.Signer
 	Client                  Client
 	StripRequestHeaders     []string
+	CustomHeaders           http.Header
 	DuplicateRequestHeaders []string
 	SigningNameOverride     string
 	SigningHostOverride     string
@@ -225,6 +226,9 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 
 	// Add origin headers after request is signed (no overwrite)
 	copyHeaderWithoutOverwrite(proxyReq.Header, req.Header)
+
+	// Add custom headers (no overwrite)
+	copyHeaderWithoutOverwrite(proxyReq.Header, p.CustomHeaders)
 
 	if log.GetLevel() == log.DebugLevel {
 		proxyReqDump, err := httputil.DumpRequest(proxyReq, true)

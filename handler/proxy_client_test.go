@@ -419,6 +419,66 @@ func TestProxyClient_Do(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should add the custom header",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+				Header: http.Header{
+					"User-Agent": []string{"customAgent"},
+				},
+			},
+			proxyClient: &ProxyClient{
+				Signer:                  v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:                  &mockHTTPClient{},
+				DuplicateRequestHeaders: []string{"NonExistentHeader"},
+				CustomHeaders:           http.Header{"Custom-Header": []string{"customValue"}},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					Header: http.Header{
+						"User-Agent": []string{"customAgent"},
+						//Ensure the custom header is present
+						"Custom-Header": []string{"customValue"},
+					},
+				},
+			},
+		},
+		{
+			name: "should not overwrite origin header with a custom header",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "execute-api.us-west-2.amazonaws.com",
+				Header: http.Header{
+					"Custom-Header": []string{"customValue"},
+					"User-Agent":    []string{"customAgent"},
+				},
+				Body: nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer:        v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client:        &mockHTTPClient{},
+				CustomHeaders: http.Header{"Custom-Header": []string{"customValueCustom"}},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "execute-api.us-west-2.amazonaws.com",
+					Header: http.Header{
+						//Ensure the custom header doesn't overwrite an existing header
+						"Custom-Header": []string{"customValue"},
+						"User-Agent":    []string{"customAgent"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
