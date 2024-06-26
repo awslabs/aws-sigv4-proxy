@@ -19,7 +19,9 @@ import (
 	"crypto/tls"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"aws-sigv4-proxy/handler"
@@ -40,6 +42,7 @@ var (
 	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
 	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
+	customHeaders          = kingpin.Flag("custom-headers", "Comma-separated list of custom headers in key=value format").String()
 	duplicateHeaders       = kingpin.Flag("duplicate-headers", "Duplicate headers to an X-Original- prefix name").Strings()
 	roleArn                = kingpin.Flag("role-arn", "Amazon Resource Name (ARN) of the role to assume").String()
 	signingNameOverride    = kingpin.Flag("name", "AWS Service to sign for").String()
@@ -66,6 +69,27 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 	if *debug {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	// Initialize an http.Header object for custom headers
+	customHeadersParsed := make(http.Header)
+
+	// Parse and add custom headers if provided
+	if *customHeaders != "" {
+		// Split the headers into key-value pairs
+		headers := strings.Split(*customHeaders, ",")
+
+		for _, h := range headers {
+			// Split each header into key and value
+			kv := strings.SplitN(h, "=", 2)
+			if len(kv) != 2 {
+				log.Warnf("Invalid header format: [%s], skipping", h)
+				continue
+			}
+
+			// Add the header to the custom headers
+			customHeadersParsed.Add(kv[0], kv[1])
+		}
 	}
 
 	sessionConfig := aws.Config{}
@@ -119,6 +143,7 @@ func main() {
 		},
 	}
 
+	log.WithFields(log.Fields{"CcustomHeadersParsed": reflect.ValueOf(customHeadersParsed).MapKeys()}).Infof("Custom headers, values are redacted: %s", reflect.ValueOf(customHeadersParsed).MapKeys())
 	log.WithFields(log.Fields{"StripHeaders": *strip}).Infof("Stripping headers %s", *strip)
 	log.WithFields(log.Fields{"DuplicateHeaders": *duplicateHeaders}).Infof("Duplicating headers %s", *duplicateHeaders)
 	log.WithFields(log.Fields{"port": *port}).Infof("Listening on %s", *port)
@@ -129,6 +154,7 @@ func main() {
 				Signer:                  signer,
 				Client:                  client,
 				StripRequestHeaders:     *strip,
+				CustomHeaders:           customHeadersParsed,
 				DuplicateRequestHeaders: *duplicateHeaders,
 				SigningNameOverride:     *signingNameOverride,
 				SigningHostOverride:     *signingHostOverride,
