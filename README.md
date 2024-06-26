@@ -161,8 +161,9 @@ OpenSearch
                  --host host.docker.internal:4443 \
                  --sign-host eu-west-1.es.amazonaws.com
     ```
-  
-  Access dashboard via http://localhost:8080/_dashboards/app/home#/tutorial_directory
+## Healthcheck
+
+To use healthcheck on ECS or EKS, simply make a call to `localhost:8080/health` which will return the HTTP Status OK.
 
 ## Reference
 
