@@ -89,4 +89,6 @@ jobs:
           registry: ${{ env.STAGING_ECR_REGISTRY }}
 
       - name: Run integration tests
-        run: ./.github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}
+        run: |
+          set -e
+          ./.github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}

@@ -1,4 +1,7 @@
-#!/bin/sh 
+#!/bin/sh
+
+# Fail if any of the steps fail
+set -e
 
 IMAGE=$1
 CONTAINER_NAME="integ-test-$(date +%s)"
