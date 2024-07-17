@@ -1,0 +1,83 @@
+name: Continuous integration
+on:
+  push:
+    branches:
+      - main
+      - "release/v*"
+env:
+    AWS_STAGING_REGION: us-west-2
+    STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
+    STAGING_ECR_REPOSITORY: aws-sigv4-proxy-staging
+
+jobs:
+  build:
+    name: Build and publish to staging
+    runs-on: ubuntu-latest
+    outputs:
+      commit-short-sha: ${{ steps.staging-info.outputs.commit-short-sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.22.4
+
+      - name: Build
+        run: |
+          go build -v ./cmd/aws-sigv4-proxy
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Configure AWS Credentials for Private ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_STAGING }}
+          aws-region: ${{ env.AWS_STAGING_REGION }}
+
+      - name: Log in to AWS private ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.STAGING_ECR_REGISTRY }}
+
+      - name: Get short sha
+        id: staging-info
+        run: |
+            shortSha=$(git rev-parse --short ${{ github.sha }})
+            echo "commit-short-sha=$shortSha" >> $GITHUB_OUTPUT
+
+      - name: Build and push image to staging
+        uses: docker/build-push-action@v5
+        with:
+          file: Dockerfile
+          context: .
+          push: true
+          tags: |
+            ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ steps.staging-info.outputs.commit-short-sha }}
+          platforms : linux/amd64, linux/arm64
+
+  integration-tests:
+    name: Run integration tests on image from staging
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Configure AWS Credentials for Private ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_INTEG_TESTS }}
+          aws-region: ${{ env.AWS_STAGING_REGION }}
+
+      - name: Run integration tests
+        run: ./github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}
