@@ -14,6 +14,8 @@ docker run -dt -p 8080:8080 \
 # Wait for the container to start
 sleep 5
 
+docker logs $CONTAINER_NAME
+
 curl -s -H 'host: s3.amazonaws.com' http://localhost:8080 | grep ListAllMyBucketsResult
 result=$?
 
