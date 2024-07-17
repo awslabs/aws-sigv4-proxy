@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 IMAGE=$1
 CONTAINER_NAME="integ-test-$(date +%s)"
