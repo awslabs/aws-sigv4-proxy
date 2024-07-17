@@ -84,4 +84,4 @@ jobs:
           aws-region: ${{ env.AWS_STAGING_REGION }}
 
       - name: Run integration tests
-        run: ./github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}
+        run: ./.github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}
