@@ -83,5 +83,10 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_INTEG_TESTS }}
           aws-region: ${{ env.AWS_STAGING_REGION }}
 
+      - name: Log in to AWS private ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.STAGING_ECR_REGISTRY }}
+
       - name: Run integration tests
         run: ./.github/scripts/integ-tests.sh ${{ env.STAGING_ECR_REGISTRY }}/${{ env.STAGING_ECR_REPOSITORY }}:${{ needs.build.outputs.commit-short-sha }}
