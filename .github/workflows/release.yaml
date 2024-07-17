@@ -1,0 +1,100 @@
+
+name: Release aws-sigv4-proxy
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrunMode:
+        description: 'Run workflow in dry-run mode (nothing will be published)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+        - 'true'
+        - 'false'
+
+env:
+  AWS_PUBLIC_ECR_REGION: us-east-1
+  AWS_PRIVATE_ECR_REGION: us-west-2
+  PUBLIC_REGISTRY: public.ecr.aws
+  STAGING_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
+  RELEASE_IMAGE_NAME: aws-sigv4-proxy
+  STAGING_IMAGE_NAME: aws-sigv4-proxy-staging
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get version and sha
+        id: release-info
+        run: |
+          echo "release-version=$(cat VERSION)" >> $GITHUB_OUTPUT
+          shortSha=$(git rev-parse --short ${{ github.sha }})
+          echo "commit-short-sha=$shortSha" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
+
+      - name: Log in to AWS ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.PUBLIC_REGISTRY }}
+
+      - name: Configure AWS Credentials for Private ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
+          aws-region: ${{ env.AWS_PRIVATE_ECR_REGION }}
+
+      - name: Log in to AWS private ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.STAGING_REGISTRY }}
+
+      - name: Push image to public ecr - dryrun
+        if: ${{ inputs.dryrunMode == 'true' }}
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:latest \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.release-version }} \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }} \
+            ${{ env.STAGING_REGISTRY }}/${{ env.STAGING_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }}
+            --dry-run
+
+      - name: Create release - dryrun
+        if: ${{ inputs.dryrunMode == 'true' }}
+        run: |
+          echo gh release create --target "$GITHUB_REF_NAME" \
+             --title "Release v${{ steps.release-info.outputs.release-version }}" \
+             --draft \
+             "v${{ steps.release-info.outputs.release-version }}" \
+
+      - name: Push image to public ecr
+        if: ${{ inputs.dryrunMode == 'false' }}
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:latest \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.release-version }} \
+            --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }} \
+            ${{ env.STAGING_REGISTRY }}/${{ env.STAGING_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }}
+
+      - name: Create release
+        if: ${{ inputs.dryrunMode == 'false'}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        run: |
+          gh release create --target "$GITHUB_REF_NAME" \
+             --title "Release v${{ steps.release-info.outputs.release-version }}" \
+             --draft \
+             "v${{ steps.release-info.outputs.release-version }}" \
