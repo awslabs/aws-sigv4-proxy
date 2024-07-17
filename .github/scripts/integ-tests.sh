@@ -16,7 +16,7 @@ sleep 5
 
 docker logs $CONTAINER_NAME
 
-curl -s -H 'host: s3.amazonaws.com' http://localhost:8080 | grep ListAllMyBucketsResult
+curl -s -H 'host: s3.amazonaws.com' http://127.0.0.1:8080 | grep ListAllMyBucketsResult
 result=$?
 
 docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
