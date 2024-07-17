@@ -16,9 +16,11 @@ result=$?
 
 docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
 
-if [ "$result" == "1" ]; then
+if [[ "$result" == "1" ]]; then
   echo "Integration tests failed"
   exit 1
 fi
+
+echo "Integration tests run successfully"
 
 exit 0
