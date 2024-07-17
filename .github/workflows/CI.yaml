@@ -9,6 +9,10 @@ env:
     STAGING_ECR_REGISTRY: 611364707713.dkr.ecr.us-west-2.amazonaws.com
     STAGING_ECR_REPOSITORY: aws-sigv4-proxy-staging
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     name: Build and publish to staging
