@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# Fail if any of the steps fail
-set -e
-
 IMAGE=$1
 CONTAINER_NAME="integ-test-$(date +%s)"
 
@@ -17,8 +14,7 @@ docker run -dt -p 8080:8080 \
 curl -s -H 'host: s3.amazonaws.com' http://localhost:8080 | grep ListAllMyBucketsResult
 result=$?
 
-docker stop $CONTAINER_NAME
-docker rm $CONTAINER_NAME
+docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
 
 if [ "$result" == "1" ]; then
   echo "Integration tests failed"
