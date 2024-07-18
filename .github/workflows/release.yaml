@@ -13,6 +13,10 @@ on:
         - 'true'
         - 'false'
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_PUBLIC_ECR_REGION: us-east-1
   AWS_PRIVATE_ECR_REGION: us-west-2
