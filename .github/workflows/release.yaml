@@ -74,7 +74,7 @@ jobs:
             --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.PUBLIC_REPO }}/${{ env.RELEASE_IMAGE_NAME }}:latest \
             --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.PUBLIC_REPO }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.release-version }} \
             --tag ${{ env.PUBLIC_REGISTRY }}/${{ env.PUBLIC_REPO }}/${{ env.RELEASE_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }} \
-            ${{ env.STAGING_REGISTRY }}/${{ env.STAGING_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }}
+            ${{ env.STAGING_REGISTRY }}/${{ env.STAGING_IMAGE_NAME }}:${{ steps.release-info.outputs.commit-short-sha }} \
             --dry-run
 
       - name: Create release - dryrun
@@ -83,7 +83,7 @@ jobs:
           echo gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ steps.release-info.outputs.release-version }}" \
              --draft \
-             "v${{ steps.release-info.outputs.release-version }}" \
+             "v${{ steps.release-info.outputs.release-version }}"
 
       - name: Push image to public ecr
         if: ${{ inputs.dryrunMode == 'false' }}
@@ -102,4 +102,4 @@ jobs:
           gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ steps.release-info.outputs.release-version }}" \
              --draft \
-             "v${{ steps.release-info.outputs.release-version }}" \
+             "v${{ steps.release-info.outputs.release-version }}"
