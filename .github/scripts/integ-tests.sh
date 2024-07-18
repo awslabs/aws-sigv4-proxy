@@ -14,18 +14,16 @@ docker run -dt -p 8080:8080 \
 # Wait for the container to start
 sleep 5
 
-docker logs $CONTAINER_NAME
-
-curl -s -H 'host: s3.amazonaws.com' http://127.0.0.1:8080 | grep ListAllMyBucketsResult
+curl -s -H 'host: s3.amazonaws.com' http://127.0.0.1:8080 | grep -o "<ListAllMyBucketsResult"
 result=$?
 
 docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
 
-if [[ "$result" == "1" ]]; then
-  echo "Integration tests failed"
-  exit 1
+if [[ "$result" == "0" ]]; then
+  echo "Integration tests succeeded"
+  exit 0
 fi
 
-echo "Integration tests run successfully"
+echo "Integration tests failed"
 
-exit 0
+exit 1
