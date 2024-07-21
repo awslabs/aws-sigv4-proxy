@@ -58,7 +58,7 @@ jobs:
             echo "commit-short-sha=$shortSha" >> $GITHUB_OUTPUT
 
       - name: Build and push image to staging
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           file: Dockerfile
           context: .
