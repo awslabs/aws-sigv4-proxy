@@ -47,6 +47,7 @@ type ProxyClient struct {
 	RegionOverride          string
 	LogFailedRequest        bool
 	SchemeOverride          string
+	RateLimiter 			*RateLimiter
 }
 
 func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoint) error {
@@ -130,6 +131,11 @@ func readDownStreamRequestBody(req *http.Request) ([]byte, error) {
 }
 
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
+	// Add rate limiting check at the start of the Do method
+	if p.RateLimiter != nil && !p.RateLimiter.Allow() {
+		return nil, fmt.Errorf("rate limit exceeded")
+	}
+
 	proxyURL := *req.URL
 	if p.HostOverride != "" {
 		proxyURL.Host = p.HostOverride

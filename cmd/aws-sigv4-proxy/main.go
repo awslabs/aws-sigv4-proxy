@@ -53,6 +53,10 @@ var (
 	idleConnTimeout        = kingpin.Flag("transport.idle-conn-timeout", "Idle timeout to the upstream service").Default("40s").Duration()
 	schemeOverride         = kingpin.Flag("upstream-url-scheme", "Protocol to proxy with").String()
 	unsignedPayload        = kingpin.Flag("unsigned-payload", "Prevent signing of the payload").Default("false").Bool()
+
+	// Traffic shaping 
+	rateLimit = kingpin.Flag("rate-limit", "Number of requests per second").Default("0").Float64()
+    burstLimit = kingpin.Flag("burst-limit", "Maximum burst size for requests").Default("0").Int()
 )
 
 type awsLoggerAdapter struct {
@@ -165,6 +169,27 @@ func main() {
 			},
 		}),
 	)
+
+	rateLimiter := handler.NewRateLimiter(*rateLimit, *burstLimit)
+    
+    log.Fatal(
+        http.ListenAndServe(*port, &handler.Handler{
+            ProxyClient: &handler.ProxyClient{
+                Signer:                  signer,
+                Client:                  client,
+                StripRequestHeaders:     *strip,
+                CustomHeaders:           customHeadersParsed,
+                DuplicateRequestHeaders: *duplicateHeaders,
+                SigningNameOverride:     *signingNameOverride,
+                SigningHostOverride:     *signingHostOverride,
+                HostOverride:            *hostOverride,
+                RegionOverride:          *regionOverride,
+                LogFailedRequest:        *logFailedResponse,
+                SchemeOverride:          *schemeOverride,
+                RateLimiter:            rateLimiter,  // Add this line
+            },
+        }),
+    )
 }
 
 func shouldLogSigning() bool {

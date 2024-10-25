@@ -10,6 +10,8 @@ COPY  . .
 
 RUN go env -w GOPROXY=direct
 
+RUN go get golang.org/x/time/rate
+
 RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/aws-sigv4-proxy
 
 FROM alpine:3
