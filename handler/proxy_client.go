@@ -59,6 +59,7 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 		}
 
 		body = bytes.NewReader(b)
+		req.Body = io.NopCloser(bytes.NewReader(b))
 	}
 
 	// S3 service should not have any escaping applied.
