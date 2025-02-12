@@ -1,4 +1,4 @@
-FROM golang:1.22.4-alpine AS build
+FROM golang:1.23.6-alpine AS build
 
 RUN apk --update add \
       ca-certificates \
@@ -12,7 +12,7 @@ RUN go env -w GOPROXY=direct
 
 RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/aws-sigv4-proxy
 
-FROM alpine:3
+FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /aws-sigv4-proxy/aws-sigv4-proxy ./
 
