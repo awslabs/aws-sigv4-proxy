@@ -3,7 +3,7 @@ module aws-sigv4-proxy
 go 1.22.4
 
 require (
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
