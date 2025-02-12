@@ -40,7 +40,7 @@ var (
 	debug                  = kingpin.Flag("verbose", "Enable additional logging, implies all the log-* options").Short('v').Bool()
 	logFailedResponse      = kingpin.Flag("log-failed-requests", "Log 4xx and 5xx response body").Bool()
 	logSinging             = kingpin.Flag("log-signing-process", "Log sigv4 signing process").Bool()
-	port                   = kingpin.Flag("port", "Port to serve http on").Default(":8080").String()
+	port                   = kingpin.Flag("port", "TCP network address (port and optional ip/hostname) for HTTP server to listen on. E.g., :8080, 127.0.0.1:8080, or example.com:80").Default(":8080").String()
 	strip                  = kingpin.Flag("strip", "Headers to strip from incoming request").Short('s').Strings()
 	customHeaders          = kingpin.Flag("custom-headers", "Comma-separated list of custom headers in key=value format").String()
 	duplicateHeaders       = kingpin.Flag("duplicate-headers", "Duplicate headers to an X-Original- prefix name").Strings()
