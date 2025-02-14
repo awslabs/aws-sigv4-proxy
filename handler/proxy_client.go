@@ -130,6 +130,9 @@ func readDownStreamRequestBody(req *http.Request) ([]byte, error) {
 }
 
 func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
+	// Force req.Host to s3.amazonaws.com
+	req.Host = "s3.eu-central-1.amazonaws.com"
+	
 	proxyURL := *req.URL
 	if p.HostOverride != "" {
 		proxyURL.Host = p.HostOverride
