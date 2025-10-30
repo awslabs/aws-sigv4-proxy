@@ -59,7 +59,7 @@ func init() {
 
 func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
 	for endpoint, service := range services {
-		if host == endpoint {
+		if host == endpoint || (endpoint != "" && strings.HasSuffix(host, "."+endpoint)) {
 			return &service
 		}
 	}

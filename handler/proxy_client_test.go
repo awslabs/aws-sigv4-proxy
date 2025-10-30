@@ -479,6 +479,26 @@ func TestProxyClient_Do(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should return request when everything 👍 for apigateway subdomin",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "abc1defg2h3.execute-api.us-west-2.amazonaws.com",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "abc1defg2h3.execute-api.us-west-2.amazonaws.com",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
