@@ -42,6 +42,11 @@ func init() {
 		host := fmt.Sprintf("execute-api.%s.amazonaws.com", region)
 		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "execute-api", PartitionID: "aws"}
 	}
+	// Add lambda function url endpoints
+	for region := range endpoints.AwsPartition().Regions() {
+		host := fmt.Sprintf("lambda-url.%s.on.aws", region)
+		services[host] = endpoints.ResolvedEndpoint{URL: fmt.Sprintf("https://%s", host), SigningMethod: "v4", SigningRegion: region, SigningName: "lambda", PartitionID: "aws"}
+	}
 	// Add elasticsearch endpoints
 	for region := range endpoints.AwsPartition().Regions() {
 		host := fmt.Sprintf("%s.es.amazonaws.com", region)

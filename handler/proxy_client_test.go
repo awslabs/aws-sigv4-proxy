@@ -243,6 +243,26 @@ func TestProxyClient_Do(t *testing.T) {
 			},
 		},
 		{
+			name: "should return request when everything 👍 for lambda function url",
+			request: &http.Request{
+				Method: "GET",
+				URL:    &url.URL{},
+				Host:   "abcdefghijklmnopqrstuvwxyz123456.lambda-url.us-east-2.on.aws",
+				Body:   nil,
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewCredentials(&mockProvider{})),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				err:  nil,
+				request: &http.Request{
+					Host: "abcdefghijklmnopqrstuvwxyz123456.lambda-url.us-east-2.on.aws",
+				},
+			},
+		},
+		{
 			name: "should propagate non-zero content length",
 			request: &http.Request{
 				Method:        "PUT",
