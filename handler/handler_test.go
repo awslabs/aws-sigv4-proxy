@@ -374,3 +374,96 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 		})
 	}
 }
+
+// failingWriter is a ResponseWriter that fails after a certain number of bytes
+type failingWriter struct {
+	header         http.Header
+	statusCode     int
+	bytesWritten   int
+	failAfterBytes int
+}
+
+func (w *failingWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *failingWriter) Write(data []byte) (int, error) {
+	if w.failAfterBytes >= 0 && w.bytesWritten+len(data) > w.failAfterBytes {
+		remaining := w.failAfterBytes - w.bytesWritten
+		if remaining > 0 {
+			w.bytesWritten += remaining
+			return remaining, io.ErrClosedPipe
+		}
+		return 0, io.ErrClosedPipe
+	}
+	w.bytesWritten += len(data)
+	return len(data), nil
+}
+
+func (w *failingWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+}
+
+func (w *failingWriter) Flush() {
+}
+
+// TestHandler_WriterFailure tests that the handler doesn't panic when the ResponseWriter
+// fails during streaming. This regression test catches a bug where err.Error() was called
+// on a nil error when a write failed but the read was successful.
+func TestHandler_WriterFailure(t *testing.T) {
+	tests := []struct {
+		name           string
+		body           []byte
+		failAfterBytes int
+	}{
+		{
+			name:           "writer fails after partial write",
+			body:           []byte("long data stream"),
+			failAfterBytes: 5,
+		},
+		{
+			name:           "writer fails immediately",
+			body:           []byte("test data"),
+			failAfterBytes: 0,
+		},
+		{
+			name:           "writer fails mid-stream with large body",
+			body:           bytes.Repeat([]byte("x"), 10000),
+			failAfterBytes: 1000,
+		},
+		{
+			name:           "writer fails after first chunk",
+			body:           bytes.Repeat([]byte("y"), 50000), // Larger than 32KB buffer
+			failAfterBytes: 32 * 1024,                        // Fail after first buffer
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proxyClient := &mockProxyClient{
+				Response: &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"text/plain"}},
+					Body:       ioutil.NopCloser(bytes.NewReader(tt.body)),
+				},
+			}
+
+			handler := &Handler{
+				ProxyClient: proxyClient,
+			}
+
+			req := httptest.NewRequest("GET", "http://example.com", nil)
+			w := &failingWriter{
+				header:         make(http.Header),
+				failAfterBytes: tt.failAfterBytes,
+			}
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.statusCode)
+			if tt.failAfterBytes > 0 {
+				assert.True(t, w.bytesWritten > 0)
+			}
+		})
+	}
+}
