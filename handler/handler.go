@@ -64,7 +64,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if n > 0 {
 			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
 				log.WithError(writeErr).Error(errorMsg)
-				h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
+				// Don't try to write to w if it's already failing
 				return
 			}
 			// Flush after each chunk to ensure immediate delivery
@@ -77,7 +77,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			log.WithError(err).Error(errorMsg)
-			h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
+			// Try to write error to response, but don't panic if it fails
+			fmt.Fprintf(w, "%v - %v", errorMsg, err.Error())
 			return
 		}
 	}
