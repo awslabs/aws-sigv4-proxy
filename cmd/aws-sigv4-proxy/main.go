@@ -172,12 +172,23 @@ func shouldLogSigning() bool {
 }
 
 func roleSessionName() string {
-	suffix, err := os.Hostname()
+	return roleSessionNameWithHostname(os.Hostname)
+}
 
-	if err != nil {
-		now := time.Now().Unix()
-		suffix = strconv.FormatInt(now, 10)
+func roleSessionNameWithHostname(hostnameFn func() (string, error)) string {
+	if env := os.Getenv("AWS_ROLE_SESSION_NAME"); env != "" {
+		return env
 	}
 
-	return "aws-sigv4-proxy-" + suffix
+	sessionName := "aws-sigv4-proxy-"
+	if hostname, err := hostnameFn(); err == nil {
+		sessionName += hostname
+	} else {
+		sessionName += strconv.FormatInt(time.Now().Unix(), 10)
+	}
+
+	if len(sessionName) > 64 {
+		return sessionName[:64]
+	}
+	return sessionName
 }
