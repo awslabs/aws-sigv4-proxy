@@ -46,7 +46,7 @@ jobs:
           echo "commit-short-sha=$shortSha" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PUBLIC_ECR_REGION }}
@@ -57,7 +57,7 @@ jobs:
           registry: ${{ env.PUBLIC_REGISTRY }}
 
       - name: Configure AWS Credentials for Private ECR
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_RELEASE }}
           aws-region: ${{ env.AWS_PRIVATE_ECR_REGION }}

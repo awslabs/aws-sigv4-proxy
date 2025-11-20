@@ -41,7 +41,7 @@ jobs:
         run: go test -v ./...
 
       - name: Configure AWS Credentials for Private ECR
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_STAGING }}
           aws-region: ${{ env.AWS_REGION }}
@@ -78,7 +78,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Configure AWS Credentials for Private ECR
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN_INTEG_TESTS }}
           aws-region: ${{ env.AWS_REGION }}
