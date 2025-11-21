@@ -92,6 +92,10 @@ func main() {
 		}
 	}
 
+	sessionOptions := session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}
+
 	sessionConfig := aws.Config{}
 	if v := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"); len(v) == 0 {
 		sessionConfig.STSRegionalEndpoint = endpoints.RegionalSTSEndpoint
@@ -99,7 +103,8 @@ func main() {
 
 	sessionConfig.CredentialsChainVerboseErrors = aws.Bool(shouldLogSigning())
 
-	session, err := session.NewSession(&sessionConfig)
+	sessionOptions.Config.MergeIn(&sessionConfig)
+	session, err := session.NewSessionWithOptions(sessionOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
