@@ -263,8 +263,11 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 					Response: &http.Response{
 						StatusCode: http.StatusOK,
 						Header: http.Header{
-							"Content-Type": []string{"text/plain"},
+							"Content-Type":      []string{"text/plain"},
+							"Transfer-Encoding": []string{"chunked"},
 						},
+						TransferEncoding: []string{"chunked"},
+						ContentLength:    -1,
 						Body: newChunkReader([][]byte{
 							[]byte("chunk 1\n"),
 							[]byte("chunk 2\n"),
@@ -278,7 +281,8 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 			want: &want{
 				statusCode: http.StatusOK,
 				header: http.Header{
-					"Content-Type": []string{"text/plain"},
+					"Content-Type":      []string{"text/plain"},
+					"Transfer-Encoding": []string{"chunked"},
 				},
 				body:           []byte("chunk 1\nchunk 2\nchunk 3\nchunk 4\n"),
 				expectedWrites: 4,
@@ -301,6 +305,8 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 							"Cache-Control":     []string{"no-cache"},
 							"Transfer-Encoding": []string{"chunked"},
 						},
+						TransferEncoding: []string{"chunked"},
+						ContentLength:    -1,
 						Body: newChunkReader([][]byte{
 							[]byte("data: event 1\n\n"),
 							[]byte("data: event 2\n\n"),
@@ -333,9 +339,12 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 					Response: &http.Response{
 						StatusCode: http.StatusOK,
 						Header: http.Header{
-							"Content-Type": []string{"application/octet-stream"},
+							"Content-Type":      []string{"application/octet-stream"},
+							"Transfer-Encoding": []string{"chunked"},
 						},
-						Body: ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte("abcdefghij"), 5000))), // 50KB
+						TransferEncoding: []string{"chunked"},
+						ContentLength:    -1,
+						Body:             ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte("abcdefghij"), 5000))), // 50KB
 					},
 				},
 			},
@@ -343,7 +352,8 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 			want: &want{
 				statusCode: http.StatusOK,
 				header: http.Header{
-					"Content-Type": []string{"application/octet-stream"},
+					"Content-Type":      []string{"application/octet-stream"},
+					"Transfer-Encoding": []string{"chunked"},
 				},
 				body:           bytes.Repeat([]byte("abcdefghij"), 5000), // 50KB
 				expectedWrites: 2,                                        // Should be split by 32KB buffer
@@ -373,6 +383,33 @@ func TestHandler_StreamsChunksIncrementally(t *testing.T) {
 			assert.Equal(t, tt.want.body, fullBody.Bytes())
 		})
 	}
+}
+
+func TestHandler_BuffersKnownLengthResponses(t *testing.T) {
+	// This test ensures we keep the legacy behavior where fixed-length responses
+	// are buffered and emitted with a single write (preserving Content-Length)
+	// instead of forcing chunked transfer downstream.
+	body := []byte("chunk 1\nchunk 2\nchunk 3\nchunk 4\n")
+	handler := &Handler{
+		ProxyClient: &mockProxyClient{
+			Response: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Type": []string{"text/plain"}},
+				ContentLength: int64(len(body)),
+				Body:          ioutil.NopCloser(bytes.NewReader(body)),
+			},
+		},
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := newCaptureFlushWriter()
+
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.statusCode)
+	assert.Equal(t, 1, len(w.writes))
+	assert.Equal(t, 0, w.flushes)
+	assert.Equal(t, body, w.writes[0])
 }
 
 // failingWriter is a ResponseWriter that fails after a certain number of bytes
@@ -443,8 +480,13 @@ func TestHandler_WriterFailure(t *testing.T) {
 			proxyClient := &mockProxyClient{
 				Response: &http.Response{
 					StatusCode: http.StatusOK,
-					Header:     http.Header{"Content-Type": []string{"text/plain"}},
-					Body:       ioutil.NopCloser(bytes.NewReader(tt.body)),
+					Header: http.Header{
+						"Content-Type":      []string{"text/plain"},
+						"Transfer-Encoding": []string{"chunked"},
+					},
+					TransferEncoding: []string{"chunked"},
+					ContentLength:    -1,
+					Body:             ioutil.NopCloser(bytes.NewReader(tt.body)),
 				},
 			}
 

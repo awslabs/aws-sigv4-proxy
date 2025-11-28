@@ -42,6 +42,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	respChunked := chunked(resp.TransferEncoding)
+	shouldStream := respChunked || resp.ContentLength < 0
+
 	// copy headers first, before writing status
 	for k, vals := range resp.Header {
 		for _, v := range vals {
@@ -49,7 +52,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// write status code
+	if !shouldStream {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			errorMsg := "error while reading response from upstream"
+			log.WithError(err).Error(errorMsg)
+			h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
+			return
+		}
+
+		h.write(w, resp.StatusCode, body)
+		return
+	}
+
+	// write status code for streaming responses so downstream knows we started sending data
 	w.WriteHeader(resp.StatusCode)
 
 	// stream response body directly to the client with explicit flushing
