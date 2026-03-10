@@ -26,10 +26,13 @@ docker run --rm -ti \
   -p 8080:8080 \
   aws-sigv4-proxy -v
 
-# Shared Credentials
+# Shared Credentials (v1.10+)
+# Note: Since v1.10, the image uses 'scratch' base which has no HOME directory.
+# You must explicitly set AWS_SHARED_CREDENTIALS_FILE for the SDK to find credentials.
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v
@@ -88,6 +91,7 @@ Running the service and stripping out sigv2 authorization headers
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v -s Authorization
@@ -99,6 +103,7 @@ Running the service and preserving the original Authorization header as X-Origin
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v --duplicate-headers Authorization
@@ -110,6 +115,7 @@ Running the service with Assume Role to use temporary credentials
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v --role-arn <ARN OF ROLE TO ASSUME>
@@ -121,6 +127,7 @@ Include service name & region overrides when you notice errors like `unable to d
 docker run --rm -ti \
   -v ~/.aws:/root/.aws \
   -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
   -e 'AWS_SDK_LOAD_CONFIG=true' \
   -e 'AWS_PROFILE=<SOME PROFILE>' \
   aws-sigv4-proxy -v --name execute-api --region us-east-1
@@ -147,12 +154,13 @@ OpenSearch
      -N
     ```
 
-    Finally, run proxy: 
+    Finally, run proxy:
     ```sh
     docker run --rm -ti \
          -v ~/.aws:/root/.aws \
          --network=bridge \
          -p 8080:8080 \
+         -e "AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials" \
          -e "AWS_SDK_LOAD_CONFIG=true" \
          -e "AWS_PROFILE=role-profile" \
          aws-sigv4-proxy \
@@ -163,6 +171,43 @@ OpenSearch
     ```
   
   Access dashboard via http://localhost:8080/_dashboards/app/home#/tutorial_directory
+
+## Troubleshooting
+
+### Shared Credentials Not Found (v1.10+)
+
+Starting with v1.10, the Docker image uses a `scratch` base image instead of `alpine`. The scratch image has no home directory and no `HOME` environment variable, which prevents the AWS SDK from automatically discovering shared credentials.
+
+**Symptoms:**
+- Credential chain fails with messages about missing credentials
+- `UserHomeNotFound` errors
+- Requests fail with authentication errors despite mounting `~/.aws`
+
+**Solution:**
+
+When using shared credentials with v1.10+, you must explicitly set `AWS_SHARED_CREDENTIALS_FILE`:
+
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials' \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v
+```
+
+Alternatively, you can set `HOME=/root` to enable auto-discovery:
+
+```sh
+docker run --rm -ti \
+  -v ~/.aws:/root/.aws \
+  -p 8080:8080 \
+  -e 'HOME=/root' \
+  -e 'AWS_SDK_LOAD_CONFIG=true' \
+  -e 'AWS_PROFILE=<SOME PROFILE>' \
+  aws-sigv4-proxy -v
+```
 
 ## Reference
 
