@@ -60,6 +60,7 @@ s", "
 | `upstream-url-scheme`         | String   | Protocol to proxy with                                     | https   |
 | `no-verify-ssl`               | Boolean  | Disable peer SSL certificate validation                    | `False` |
 | `transport.idle-conn-timeout` | Duration | Idle timeout to the upstream service                       | `40s`   |
+| `transport.max-idle-conns-per-host` | Int | Maximum idle (keep-alive) connections to keep per upstream host | `2` |
 
 ## Examples
 
