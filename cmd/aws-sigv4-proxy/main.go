@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"aws-sigv4-proxy/handler"
+	"github.com/awslabs/aws-sigv4-proxy/handler"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"

@@ -1,4 +1,4 @@
-module aws-sigv4-proxy
+module github.com/awslabs/aws-sigv4-proxy
 
 go 1.26.0
 
