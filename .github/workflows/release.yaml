@@ -45,6 +45,11 @@ jobs:
           shortSha=$(git rev-parse --short ${{ github.sha }})
           echo "commit-short-sha=$shortSha" >> $GITHUB_OUTPUT
 
+      - name: Build deb/rpm packages
+        uses: ./.github/actions/build-packages
+        with:
+          version: ${{ steps.release-info.outputs.release-version }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -83,7 +88,8 @@ jobs:
           echo gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ steps.release-info.outputs.release-version }}" \
              --draft \
-             "v${{ steps.release-info.outputs.release-version }}"
+             "v${{ steps.release-info.outputs.release-version }}" \
+             dist/pkg/*.deb dist/pkg/*.rpm
 
       - name: Push image to public ecr
         if: ${{ inputs.dryrunMode == 'false' }}
@@ -102,4 +108,5 @@ jobs:
           gh release create --target "$GITHUB_REF_NAME" \
              --title "Release v${{ steps.release-info.outputs.release-version }}" \
              --draft \
-             "v${{ steps.release-info.outputs.release-version }}"
+             "v${{ steps.release-info.outputs.release-version }}" \
+             dist/pkg/*.deb dist/pkg/*.rpm

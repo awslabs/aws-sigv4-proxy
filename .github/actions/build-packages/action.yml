@@ -1,0 +1,28 @@
+name: Build deb/rpm packages
+description: Cross-compile aws-sigv4-proxy and build deb + rpm packages for amd64 and arm64.
+inputs:
+  version:
+    description: Package version (e.g. contents of the VERSION file).
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+    - name: Install nfpm
+      shell: bash
+      run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
+    - name: Build binaries and packages
+      shell: bash
+      env:
+        PKG_VERSION: ${{ inputs.version }}
+      run: |
+        mkdir -p dist/bin dist/pkg
+        for arch in amd64 arm64; do
+          CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
+            go build -o dist/bin/aws-sigv4-proxy ./cmd/aws-sigv4-proxy
+          PKG_ARCH="$arch" nfpm package -f nfpm.yaml -p deb -t dist/pkg/
+          PKG_ARCH="$arch" nfpm package -f nfpm.yaml -p rpm -t dist/pkg/
+        done
+        ls -l dist/pkg

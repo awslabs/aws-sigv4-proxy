@@ -1,0 +1,25 @@
+name: aws-sigv4-proxy
+arch: ${PKG_ARCH}
+platform: linux
+version: ${PKG_VERSION}
+section: utils
+priority: optional
+maintainer: "AWS Observability <aws-observability@amazon.com>"
+description: |
+  Signs and proxies HTTP requests to AWS services using AWS Signature Version 4 (SigV4).
+vendor: Amazon Web Services
+homepage: https://github.com/awslabs/aws-sigv4-proxy
+license: Apache-2.0
+contents:
+  - src: ./dist/bin/aws-sigv4-proxy
+    dst: /usr/bin/aws-sigv4-proxy
+    file_info:
+      mode: 0755
+  - src: ./LICENSE
+    dst: /usr/share/doc/aws-sigv4-proxy/LICENSE
+    file_info:
+      mode: 0644
+  - src: ./NOTICE
+    dst: /usr/share/doc/aws-sigv4-proxy/NOTICE
+    file_info:
+      mode: 0644
