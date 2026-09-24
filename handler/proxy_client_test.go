@@ -580,3 +580,36 @@ func verifyRequest(received *http.Request, expected *http.Request) bool {
 
 	return received.Host == expected.Host
 }
+
+func TestProxyClient_DoSignsAmzHeaders(t *testing.T) {
+	client := &mockHTTPClient{}
+	proxyClient := &ProxyClient{
+		Signer:              v4.NewSigner(credentials.NewStaticCredentials("AKID", "SECRET", "")),
+		Client:              client,
+		SigningNameOverride: "s3",
+		RegionOverride:      "us-west-2",
+	}
+	request := &http.Request{
+		Method: "PUT",
+		URL:    &url.URL{Path: "/bucket/key"},
+		Host:   "s3.us-west-2.amazonaws.com",
+		Header: http.Header{
+			"Accept-Encoding":      []string{"identity"},
+			"Content-Md5":          []string{"1B2M2Y8AsgTpgAmY7PhCfg=="},
+			"X-Amz-Checksum-Crc32": []string{"AAAAAA=="},
+			"X-Amz-Meta-Owner":     []string{"alice"},
+			"X-Amz-Date":           []string{"20000101T000000Z"},
+			"X-Amz-Content-Sha256": []string{"STREAMING-AWS4-HMAC-SHA256-PAYLOAD"},
+		},
+		Body: io.NopCloser(strings.NewReader("")),
+	}
+
+	_, err := proxyClient.Do(request)
+	assert.NoError(t, err)
+
+	authorization := client.Request.Header.Get("Authorization")
+	assert.Contains(t, authorization, "SignedHeaders=content-md5;host;x-amz-checksum-crc32;x-amz-content-sha256;x-amz-date;x-amz-meta-owner,")
+	assert.NotEqual(t, "20000101T000000Z", client.Request.Header.Get("X-Amz-Date"))
+	assert.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", client.Request.Header.Get("X-Amz-Content-Sha256"))
+	assert.Equal(t, "identity", client.Request.Header.Get("Accept-Encoding"))
+}

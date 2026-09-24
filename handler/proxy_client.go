@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -93,6 +94,19 @@ func (p *ProxyClient) sign(req *http.Request, service *endpoints.ResolvedEndpoin
 	}
 
 	return err
+}
+
+func copyHeadersToSign(dst, src http.Header) {
+	for k, vv := range src {
+		name := strings.ToLower(k)
+		isAmzHeader := strings.HasPrefix(name, "x-amz-") || name == "content-md5"
+		isSignerHeader := name == "x-amz-date" || name == "x-amz-security-token" || name == "x-amz-content-sha256"
+		if !isAmzHeader || isSignerHeader {
+			continue
+		}
+
+		dst[k] = append([]string(nil), vv...)
+	}
 }
 
 func copyHeaderWithoutOverwrite(dst, src http.Header) {
@@ -187,6 +201,14 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("unable to determine service from host: %s", req.Host)
 	}
 
+	// Remove any headers specified
+	for _, header := range p.StripRequestHeaders {
+		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
+		req.Header.Del(header)
+	}
+
+	copyHeadersToSign(proxyReq.Header, req.Header)
+
 	if err := p.sign(proxyReq, service); err != nil {
 		return nil, err
 	}
@@ -205,12 +227,6 @@ func (p *ProxyClient) Do(req *http.Request) (*http.Response, error) {
 		proxyReq.TransferEncoding = []string{"identity"}
 	} else {
 		proxyReq.TransferEncoding = req.TransferEncoding
-	}
-
-	// Remove any headers specified
-	for _, header := range p.StripRequestHeaders {
-		log.WithField("StripHeader", string(header)).Debug("Stripping Header:")
-		req.Header.Del(header)
 	}
 
 	// Duplicate the header value for any headers specified into a new header
