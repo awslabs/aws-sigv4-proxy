@@ -57,9 +57,10 @@ func (m *mockProvider) Retrieve() (credentials.Value, error) {
 
 func TestProxyClient_Do(t *testing.T) {
 	type want struct {
-		resp    *http.Response
-		request *http.Request
-		err     error
+		resp        *http.Response
+		request     *http.Request
+		scopeSuffix string
+		err         error
 	}
 
 	tests := []struct {
@@ -240,6 +241,26 @@ func TestProxyClient_Do(t *testing.T) {
 				request: &http.Request{
 					Host: "execute-api.us-west-2.amazonaws.com",
 				},
+			},
+		},
+		{
+			name: "should sign regional STS requests",
+			request: &http.Request{
+				Method: "POST",
+				URL:    &url.URL{Path: "/"},
+				Host:   "sts.eu-central-1.amazonaws.com",
+				Body:   io.NopCloser(strings.NewReader("Action=GetCallerIdentity&Version=2011-06-15")),
+			},
+			proxyClient: &ProxyClient{
+				Signer: v4.NewSigner(credentials.NewStaticCredentials("test", "secret", "")),
+				Client: &mockHTTPClient{},
+			},
+			want: &want{
+				resp: &http.Response{},
+				request: &http.Request{
+					Host: "sts.eu-central-1.amazonaws.com",
+				},
+				scopeSuffix: "/eu-central-1/sts/aws4_request",
 			},
 		},
 		{
@@ -535,6 +556,8 @@ func TestProxyClient_Do(t *testing.T) {
 			if proxyRequest == nil {
 				return
 			}
+
+			assert.Contains(t, proxyRequest.Header.Get("Authorization"), tt.want.scopeSuffix)
 
 			// Ensure specific headers are propagated (or not in certain cases) to the proxy request
 			for kk, vv := range tt.want.request.Header {

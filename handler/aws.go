@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/service/sts"
 )
 
 var services = map[string]endpoints.ResolvedEndpoint{}
@@ -35,6 +36,10 @@ func init() {
 				services[host] = resolvedEndpoint
 			}
 		}
+	}
+
+	for _, partition := range endpoints.DefaultPartitions() {
+		addRegionalSTSEndpoints(partition)
 	}
 
 	// Add api gateway endpoints
@@ -69,4 +74,18 @@ func determineAWSServiceFromHost(host string) *endpoints.ResolvedEndpoint {
 		}
 	}
 	return nil
+}
+
+// addRegionalSTSEndpoints registers the regional STS endpoints of a partition.
+func addRegionalSTSEndpoints(partition endpoints.Partition) {
+	stsService, ok := partition.Services()[sts.EndpointsID]
+	if !ok {
+		return
+	}
+	for _, endpoint := range stsService.Endpoints() {
+		regional, err := endpoint.ResolveEndpoint(endpoints.STSRegionalEndpointOption)
+		if err == nil {
+			services[strings.TrimPrefix(regional.URL, "https://")] = regional
+		}
+	}
 }
