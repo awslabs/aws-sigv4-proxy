@@ -16,9 +16,8 @@
 package handler
 
 import (
-	"bytes"
-    "fmt"
-    "io"
+	"fmt"
+	"io"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -36,28 +35,67 @@ func (h *Handler) write(w http.ResponseWriter, status int, body []byte) {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.ProxyClient.Do(r)
 	if err != nil {
-	    errorMsg := "unable to proxy request"
+		errorMsg := "unable to proxy request"
 		log.WithError(err).Error(errorMsg)
 		h.write(w, http.StatusBadGateway, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
 		return
 	}
 	defer resp.Body.Close()
 
-	// read response body
-	buf := bytes.Buffer{}
-	if _, err := io.Copy(&buf, resp.Body); err != nil {
-	    errorMsg := "error while reading response from upstream"
-		log.WithError(err).Error(errorMsg)
-		h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
-		return
-	}
+	respChunked := chunked(resp.TransferEncoding)
+	shouldStream := respChunked || resp.ContentLength < 0
 
-	// copy headers
+	// copy headers first, before writing status
 	for k, vals := range resp.Header {
 		for _, v := range vals {
 			w.Header().Add(k, v)
 		}
 	}
 
-	h.write(w, resp.StatusCode, buf.Bytes())
+	if !shouldStream {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			errorMsg := "error while reading response from upstream"
+			log.WithError(err).Error(errorMsg)
+			h.write(w, http.StatusInternalServerError, []byte(fmt.Sprintf("%v - %v", errorMsg, err.Error())))
+			return
+		}
+
+		h.write(w, resp.StatusCode, body)
+		return
+	}
+
+	// write status code for streaming responses so downstream knows we started sending data
+	w.WriteHeader(resp.StatusCode)
+
+	// stream response body directly to the client with explicit flushing
+	// Use a smaller buffer and flush after each chunk for true streaming
+	flusher, canFlush := w.(http.Flusher)
+	// initialize buffer of 32K bytes
+	buf := make([]byte, 32*1024)
+	errorMsg := "error while streaming response from upstream"
+
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				log.WithError(writeErr).Error(errorMsg)
+				// Don't try to write to w if it's already failing
+				return
+			}
+			// Flush after each chunk to ensure immediate delivery
+			if canFlush {
+				flusher.Flush()
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.WithError(err).Error(errorMsg)
+			// Try to write error to response, but don't panic if it fails
+			fmt.Fprintf(w, "%v - %v", errorMsg, err.Error())
+			return
+		}
+	}
 }
