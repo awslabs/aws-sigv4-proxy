@@ -54,6 +54,7 @@ var (
 	maxIdleConnsPerHost    = kingpin.Flag("transport.max-idle-conns-per-host", "Maximum idle (keep-alive) connections to keep per upstream host").Default("2").Int()
 	schemeOverride         = kingpin.Flag("upstream-url-scheme", "Protocol to proxy with").String()
 	unsignedPayload        = kingpin.Flag("unsigned-payload", "Prevent signing of the payload").Default("false").Bool()
+	responseBufferSize     = kingpin.Flag("response-buffer-size", "Size of the buffer used to stream each response body to the client. E.g., 32KiB, 4MiB").Default("256KiB").Bytes()
 )
 
 type awsLoggerAdapter struct {
@@ -157,6 +158,7 @@ func main() {
 
 	log.Fatal(
 		http.ListenAndServe(*port, &handler.Handler{
+			BufferSize: int(*responseBufferSize),
 			ProxyClient: &handler.ProxyClient{
 				Signer:                  signer,
 				Client:                  client,

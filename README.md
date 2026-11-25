@@ -48,6 +48,7 @@ s", "
 | `log-failed-requests`         | Boolean  | Log 4xx and 5xx response body                              | `False` |
 | `log-signing-process`         | Boolean  | Log sigv4 signing process                                  | `False` |
 | `unsigned-payload`            | Boolean  | Prevent signing of the payload"                            | `False` |
+| `response-buffer-size`         | Size     | Size of the buffer used to stream each response body to the client (e.g. `32KiB`, `4MiB`) | `256KiB` |
 | `port`                        | String   | Port to serve http on                                      | `8080`  |
 | `strip` or `s`                | String   | Headers to strip from incoming request                     | None    |
 | `custom-headers`              | String   | Comma-separated list of custom headers in key=value format | None    |
